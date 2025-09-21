@@ -1,0 +1,2 @@
+Focus ONLY on the "construction" fields (seams, stitching, hems, closure). Be specific (e.g., "topstitching along lapels", "covered placket").
+Return full JSON but ONLY update construction fields; keep previous values for others.

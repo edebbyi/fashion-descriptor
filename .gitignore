@@ -1,0 +1,57 @@
+# --- Python basics ---
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+.eggs/
+.build/
+dist/
+build/
+
+# Virtual env
+.venv/
+env/
+venv/
+
+# Jupyter / notebooks
+.ipynb_checkpoints/
+*.ipynb_convert/
+
+# Testing / coverage
+.pytest_cache/
+htmlcov/
+.coverage*
+.cache/
+
+# OS cruft
+.DS_Store
+Thumbs.db
+
+# Editors / IDEs
+.vscode/
+.idea/
+
+# App artifacts (don’t commit generated outputs)
+uploads/
+outputs/
+*.log
+
+# Local config / secrets
+.env
+.env.*.local
+
+# Data (keep the folder, ignore large local files)
+data/raw/
+data/tmp/
+data/cache/
+
+# If you want to ignore images you test with:
+# data/images/*
+# !data/images/README.md   # keep a placeholder note if you want
+
+# Model weights/checkpoints (if you add any later)
+models/
+checkpoints/
+
+# Streamlit
+.streamlit/secrets.toml

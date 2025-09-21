@@ -1,0 +1,1 @@
+Fill every field in the schema based on the image. If unsure, use null.

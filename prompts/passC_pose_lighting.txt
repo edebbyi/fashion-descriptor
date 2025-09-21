@@ -1,0 +1,2 @@
+Focus ONLY on "pose", "environment_lighting" (setup, mood) and "photo_style".
+Return full JSON but ONLY update those fields; keep previous values for others.
