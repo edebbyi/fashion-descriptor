@@ -1,160 +1,259 @@
-# src/visual_descriptor/export_csv_prompt.py
 from __future__ import annotations
-import csv, pathlib
-from typing import Any, Dict, Iterable, Sequence
+from typing import Dict, Any, List
+from .schema import Record
 
-# Export order
-FIELDS = [
-    "image_id", "garment_type", "silhouette",
-    "fabric.type", "fabric.texture", "fabric.weight", "fabric.finish",
-    "garment.top", "garment.bottom",
-    "garment.layers", "garment.top_length", "garment.bottom_length",
-    "construction.seams", "construction.stitching",
+# Clothing first, lighting last, prompt_text included
+CSV_FIELDS: List[str] = [
+    # Garment summary block
+    "garment_type", "silhouette",
+    "garment.top_style", "garment.top", "garment.top_sleeve",
+    "garment.bottom",
+    "garment_components.top_length", "garment_components.bottom_length",
+    "garment_components.layers",
+    # Construction
+    "construction.top.seams", "construction.top.stitching", "construction.top.stitching_color",
+    "construction.top.hems", "construction.top.closure",
+    "construction.bottom.seams", "construction.bottom.stitching", "construction.bottom.stitching_color",
+    "construction.bottom.hems", "construction.bottom.closure",
+    "construction.seams", "construction.stitching", "construction.stitching_color",
     "construction.hems", "construction.closure",
-    "construction.top", "construction.bottom",
-    "fit_and_drape", "pose",
-    "environment_lighting.setup", "environment_lighting.mood", "environment_lighting.background",
-    "photo_style", "footwear.type", "footwear.color",
-    "model.framing", "model.expression", "model.gaze",
-    "camera.view", "camera.multiview", "camera.views", "camera.angle",
+    # Fabric & fit
+    "fabric.type", "fabric.texture", "fabric.finish", "fabric.weight",
+    "fit_and_drape",
+    # Footwear
+    "footwear.type", "footwear.color",
+    # Colors
+    "color_primary", "color_secondary",
+    # Model / Camera
+    "model.expression", "model.framing", "model.gaze",
+    "camera.angle", "camera.view", "camera.views", "camera.multiview",
+    # Photo meta
+    "photo_style", "pose",
+    "photo_metrics.specularity", "photo_metrics.translucency",
+    # Environment lighting LAST
+    "environment_lighting.background", "environment_lighting.mood", "environment_lighting.setup",
+    # IDs + prompt
+    "image_id", "prompt_text",
 ]
 
-NUKES = {"string or null", "null", "none", "None", "", None}
+def _uniq(seq: List[str]) -> List[str]:
+    out, seen = [], set()
+    for s in seq:
+        s2 = (s or "").strip()
+        if not s2: continue
+        low = s2.lower()
+        if low in seen: continue
+        out.append(s2); seen.add(low)
+    return out
 
-def clean_token(x: Any) -> str:
-    if x in NUKES:
+def _join(words: List[str]) -> str:
+    return " ".join([w for w in words if w]).strip()
+
+def _comma_join(parts: List[str]) -> str:
+    parts = [p.strip() for p in parts if p and str(p).strip()]
+    return ", ".join(parts)
+
+def _piece_cons(piece: Dict[str, Any]) -> List[str]:
+    out: List[str] = []
+    if not isinstance(piece, dict): return out
+    seams = (piece.get("seams") or "").strip()
+    stitch = (piece.get("stitching") or "").strip()
+    st_col = (piece.get("stitching_color") or "").strip()
+    hems = (piece.get("hems") or "").strip()
+    closure = (piece.get("closure") or "").strip()
+    if stitch:
+        if st_col and st_col.lower() != "matching":
+            out.append(f"{st_col} stitching ({stitch})")
+        elif st_col.lower() == "matching":
+            out.append(f"matching stitching ({stitch})")
+        else:
+            out.append(stitch)
+    if seams: out.append(seams)
+    if hems: out.append(f"hems: {hems}")
+    if closure: out.append(f"closure: {closure}")
+    return out
+
+def _global_cons(cons: Dict[str, Any]) -> List[str]:
+    if not isinstance(cons, dict): return []
+    seams = (cons.get("seams") or "").strip()
+    stitch = (cons.get("stitching") or "").strip()
+    st_col = (cons.get("stitching_color") or "").strip()
+    hems = (cons.get("hems") or "").strip()
+    closure = (cons.get("closure") or "").strip()
+    out: List[str] = []
+    if stitch:
+        if st_col and st_col.lower() != "matching":
+            out.append(f"{st_col} stitching ({stitch})")
+        elif st_col.lower() == "matching":
+            out.append(f"matching stitching ({stitch})")
+        else:
+            out.append(stitch)
+    if seams: out.append(seams)
+    if hems: out.append(f"hems: {hems}")
+    if closure: out.append(f"closure: {closure}")
+    return out
+
+def _fabric_phrase(fab: Dict[str, Any]) -> str:
+    if not isinstance(fab, dict): return ""
+    ftype = (fab.get("type") or "").strip()
+    text = (fab.get("texture") or "").strip()
+    weight = (fab.get("weight") or "").strip()
+    finish = (fab.get("finish") or "").strip()
+    bits: List[str] = []
+    if ftype: bits.append(ftype)
+    if text: bits.append(text)
+    if weight: bits.append(f"{weight} weight")
+    if finish: bits.append(f"{finish} finish")
+    return _comma_join(bits)
+
+def _garment_summary(rec: Dict[str, Any]) -> str:
+    g = rec.get("garment") or {}
+    gc = rec.get("garment_components") or {}
+    garment_type = (rec.get("garment_type") or "").strip()
+    silhouette = (rec.get("silhouette") or "").strip()
+    top_style = (g.get("top_style") or "").strip()
+    top = (g.get("top") or "").strip()
+    bottom = (g.get("bottom") or "").strip()
+    sleeve = (g.get("top_sleeve") or "").strip()
+    top_len = (gc.get("top_length") or "").strip()
+    bot_len = (gc.get("bottom_length") or "").strip()
+
+    if garment_type and garment_type.lower() in {"dress", "jumpsuit", "romper", "catsuit"}:
+        core = garment_type
+        if sleeve: core = _join([sleeve, core])
+        if bot_len: core = _join([core, bot_len])
+        if silhouette: core = f"{core} ({silhouette})"
+        return core
+
+    upper = _join(_uniq([top_style or top, sleeve, top_len]))
+    lower = _join(_uniq([bottom, bot_len]))
+    parts = [p for p in [upper, lower] if p]
+    if not parts:
+        return _join([garment_type, silhouette]) or "garment look"
+    if silhouette:
+        return f"{' and '.join(parts)} ({silhouette})"
+    return " and ".join(parts)
+
+def _details_phrase(rec: Dict[str, Any]) -> str:
+    """
+    Prefer structured details if present; otherwise use the string list.
+    """
+    dets = rec.get("details_struct")
+    if not dets:
+        dets = rec.get("details")
+    if not dets:
         return ""
-    s = str(x).strip()
-    if s.lower() in {"string or null", "null", "none"}:
-        return ""
-    return s
-
-class CSVExporter:
-    """Tiny CSV writer with legacy-compatible shims used by cli.py."""
-    def __init__(self, path: str | pathlib.Path, fields: Sequence[str] | None = None):
-        self.path = pathlib.Path(path)
-        self.fields = list(fields) if fields else list(FIELDS)
-        self._f = None
-        self._w = None
-        self._header_written = False
-
-    # lifecycle
-    def open(self):
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        self._f = self.path.open("w", newline="", encoding="utf-8")
-        self._w = csv.writer(self._f)
-        return self
-
-    def __enter__(self): return self.open()
-    def __exit__(self, *exc): self.close()
-
-    def close(self):
-        if self._f:
-            self._f.flush()
-            self._f.close()
-        self._f = None
-        self._w = None
-        self._header_written = False
-
-    # header/rows
-    def write_header(self):
-        if not self._w:
-            self.open()
-        if not self._header_written:
-            self._w.writerow(self.fields)
-            self._header_written = True
-
-    def row_from_record(self, rec: Dict[str, Any]) -> list[str]:
-        return [clean_token(rec.get(k, "")) for k in self.fields]
-
-    # --- legacy shims ---
-    def add_flat(self, flat: Dict[str, Any]) -> None:
-        if not self._w:
-            self.open()
-        if not self._header_written:
-            self.write_header()
-        self._w.writerow(self.row_from_record(flat))
-
-    def add_flats(self, flats: Iterable[Dict[str, Any]]) -> None:
-        for f in flats:
-            self.add_flat(f)
-
-    def write_record(self, rec: Dict[str, Any]) -> None:
-        self.add_flat(rec)
-
-    def write_records(self, records: Iterable[Dict[str, Any]]) -> None:
-        for r in records:
-            self.add_flat(r)
-
-    def write_rows(self, rows: Iterable[Sequence[Any]]) -> None:
-        if not self._w:
-            self.open()
-        if not self._header_written:
-            self.write_header()
-        for r in rows:
-            self._w.writerow([clean_token(x) for x in r])
-
-    def finalize(self) -> None:
-        self.close()
-
+    bits: List[str] = []
+    for d in (dets if isinstance(dets, list) else []):
+        if isinstance(d, dict):
+            color = (d.get("color") or "").strip()
+            label = (d.get("label") or d.get("kind") or "").strip()
+            if color and label: bits.append(f"{color} {label}")
+            elif color:         bits.append(color)
+            elif label:         bits.append(label)
+        elif isinstance(d, str):
+            if d.strip(): bits.append(d.strip())
+    return f"details: {', '.join(bits)}" if bits else ""
 
 def prompt_line(rec: Dict[str, Any]) -> str:
-    """One-line prompt text for image regeneration; sanitized & compact."""
-    parts: list[str] = []
+    r = Record(**rec) if not isinstance(rec, Record) else rec
+    rec = r.model_dump(mode="python", exclude_none=False)
 
-    def add(x: Any):
-        x = clean_token(x)
-        if x:
-            parts.append(x)
+    summary = _garment_summary(rec)
+    fabric = _fabric_phrase(rec.get("fabric") or {})
 
-    # garment & fabric
-    add(rec.get("garment_type"))
-    add(rec.get("silhouette"))
-    fabric = ", ".join(filter(None, [
-        clean_token(rec.get("fabric.type")),
-        clean_token(rec.get("fabric.texture")),
-        clean_token(rec.get("fabric.weight")),
-        clean_token(rec.get("fabric.finish")),
-    ]))
-    add(fabric)
+    cons = rec.get("construction") or {}
+    top_phrase = _piece_cons(cons.get("top") if isinstance(cons.get("top"), dict) else {})
+    bot_phrase = _piece_cons(cons.get("bottom") if isinstance(cons.get("bottom"), dict) else {})
+    glob_phrase = _global_cons(cons)
+    cons_bits: List[str] = []
+    if top_phrase: cons_bits.append(f"top: {_comma_join(top_phrase)}")
+    if bot_phrase: cons_bits.append(f"bottom: {_comma_join(bot_phrase)}")
+    if not (top_phrase or bot_phrase):
+        cons_bits = glob_phrase
 
-    # top/bottom components
-    if clean_token(rec.get("garment.top")):
-        parts.append(f"top: {clean_token(rec.get('garment.top'))}")
-    if clean_token(rec.get("garment.bottom")):
-        parts.append(f"bottom: {clean_token(rec.get('garment.bottom'))}")
+    colors = [c for c in (rec.get("color_palette") or []) if c]
+    color_str = ""
+    if colors:
+        color_str = colors[0] if len(colors) == 1 else f"{colors[0]} + {colors[1]}"
 
-    # construction (keep concise)
-    for k in ("construction.seams", "construction.stitching", "construction.hems", "construction.closure"):
-        add(rec.get(k))
+    det_str = _details_phrase(rec)
 
-    # fit / pose / model
-    add(rec.get("fit_and_drape"))
-    add(rec.get("pose"))
-    add(rec.get("model.framing"))
-    if clean_token(rec.get("model.expression")):
-        parts.append(f"expression: {clean_token(rec.get('model.expression'))}")
-    if clean_token(rec.get("model.gaze")):
-        parts.append(f"gaze: {clean_token(rec.get('model.gaze'))}")
+    gc = rec.get("garment_components") or {}
+    layers = gc.get("layers") or []
+    layers = layers if isinstance(layers, list) else [layers]
+    layers_str = _comma_join([x for x in layers if x])
 
-    # environment
-    env = ", ".join(filter(None, [
-        clean_token(rec.get("environment_lighting.setup")),
-        clean_token(rec.get("environment_lighting.mood")),
-        clean_token(rec.get("environment_lighting.background")),
-    ]))
-    add(env)
+    fw = rec.get("footwear") or {}
+    footwear_str = (fw.get("type") or "").strip() or None
+    if footwear_str and fw.get("color"):
+        footwear_str = f"{footwear_str} ({fw.get('color')})"
 
-    # camera
-    if clean_token(rec.get("camera.multiview")) == "yes":
-        parts.append(f"views: {clean_token(rec.get('camera.views') or 'front, back')}")
-    else:
-        add(rec.get("camera.view"))
-    add(rec.get("camera.angle"))
+    model = rec.get("model") or {}
+    cam = rec.get("camera") or {}
+    env = rec.get("environment_lighting") or {}
 
-    # style & footwear
-    add(rec.get("photo_style"))
-    fw = ", ".join(filter(None, [clean_token(rec.get("footwear.type")), clean_token(rec.get("footwear.color"))]))
-    add(fw)
+    blocks: List[str] = []
+    head = summary
+    if fabric:    head = f"{head} — {fabric}"
+    if color_str: head = f"{head} — {color_str}"
+    if det_str:   head = f"{head} — {det_str}"
+    blocks.append(head)
 
-    return " ".join(p for p in parts if p)
+    mid: List[str] = []
+    if layers_str:   mid.append(f"layers: {layers_str}")
+    if cons_bits:    mid.append(_comma_join(cons_bits))
+    if footwear_str: mid.append(f"footwear: {footwear_str}")
+    if mid: blocks.append("; ".join(mid))
+
+    tail: List[str] = []
+    if rec.get("pose"):           tail.append(rec["pose"])
+    if model.get("framing"):      tail.append(model["framing"])
+    if model.get("expression"):   tail.append(f"expression: {model['expression']}")
+    if model.get("gaze"):         tail.append(f"gaze: {model['gaze']}")
+    if cam.get("multiview") == "yes" and cam.get("views"):
+        tail.append(f"views: {cam['views']}")
+    elif cam.get("view"):
+        tail.append(cam["view"])
+    if env.get("setup"):          tail.append(env["setup"])
+    if env.get("mood"):           tail.append(env["mood"])
+    if env.get("background"):     tail.append(env["background"])
+    if rec.get("photo_style"):    tail.append(rec["photo_style"])
+    if tail: blocks.append(", ".join(tail))
+
+    return "  ".join([b for b in blocks if b]).strip()
+
+class CSVExporter:
+    def __init__(self):
+        self.rows: List[Dict[str, Any]] = []
+
+    def _dig(self, d: Dict[str, Any], dotted: str) -> Any:
+        cur = d
+        for part in dotted.split("."):
+            if not isinstance(cur, dict): return None
+            cur = cur.get(part)
+        return cur
+
+    def add_flat(self, d: Dict[str, Any]) -> None:
+        d = dict(d)
+
+        # Backfill primary/secondary from descriptive palette
+        palette = [c for c in (d.get("color_palette") or []) if c]
+        if not d.get("color_primary"):
+            d["color_primary"] = palette[0] if len(palette) > 0 else None
+        if not d.get("color_secondary"):
+            d["color_secondary"] = palette[1] if len(palette) > 1 else None
+
+        d["prompt_text"] = prompt_line(d)
+
+        # Reorder into CSV_FIELDS
+        ordered: Dict[str, Any] = {}
+        for key in CSV_FIELDS:
+            if "." in key:
+                ordered[key] = self._dig(d, key)
+            else:
+                ordered[key] = d.get(key)
+        self.rows.append(ordered)
+
+    def export(self) -> List[Dict[str, Any]]:
+        return self.rows
