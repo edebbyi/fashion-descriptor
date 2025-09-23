@@ -1,0 +1,32 @@
+# cloudbuild.yaml
+substitutions:
+  _SERVICE: visual-descriptor
+  _REGION: us-central1
+  _REPO: visual-descriptor
+  _IMAGE: app
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - '-t'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_IMAGE}:$COMMIT_SHA'
+      - .
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_IMAGE}:$COMMIT_SHA'
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - '${_SERVICE}'
+      - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_IMAGE}:$COMMIT_SHA'
+      - '--region=${_REGION}'
+      - '--allow-unauthenticated'
+      - '--min-instances=1'
+      - '--port=8080'
+      - '--set-env-vars=VD_MODEL=openai'
+      - '--set-secrets=API_KEY=API_KEY:latest,OPENAI_API_KEY=OPENAI_API_KEY:latest'
+images:
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_IMAGE}:$COMMIT_SHA'

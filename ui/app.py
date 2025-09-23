@@ -11,7 +11,7 @@ st.title("Visual Descriptor — Mini Reviewer")
 left, right = st.columns([1,2])
 
 
-engine = Engine(model="stub")
+engine = Engine(model="openai")
 
 
 with left:
