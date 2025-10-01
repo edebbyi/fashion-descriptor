@@ -2,6 +2,7 @@
 from .stub import StubCaptioner
 
 OpenAIVLM = None
+GeminiVLM = None
 Blip2Captioner = None
 
 # Try OpenAI captioner
@@ -10,6 +11,13 @@ try:
     OpenAIVLM = _OpenAIVLM
 except Exception as e:
     print("[captioners] OpenAIVLM import failed:", repr(e))
+
+# Try Gemini captioner
+try:
+    from .gemini_vlm import GeminiVLM as _GeminiVLM
+    GeminiVLM = _GeminiVLM
+except Exception as e:
+    print("[captioners] GeminiVLM import failed:", repr(e))
 
 # Try BLIP-2 (optional)
 try:

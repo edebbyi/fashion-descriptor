@@ -63,14 +63,14 @@ def _piece_cons(piece: Dict[str, Any]) -> List[str]:
     closure = (piece.get("closure") or "").strip()
     if stitch:
         if st_col and st_col.lower() != "matching":
-            out.append(f"{st_col} stitching ({stitch})")
+            out.append(f"{st_col} {stitch}")
         elif st_col.lower() == "matching":
-            out.append(f"matching stitching ({stitch})")
+            out.append(f"matching {stitch}")
         else:
             out.append(stitch)
     if seams: out.append(seams)
-    if hems: out.append(f"hems: {hems}")
-    if closure: out.append(f"closure: {closure}")
+    if hems: out.append(hems)
+    if closure: out.append(closure)
     return out
 
 def _global_cons(cons: Dict[str, Any]) -> List[str]:
@@ -83,28 +83,29 @@ def _global_cons(cons: Dict[str, Any]) -> List[str]:
     out: List[str] = []
     if stitch:
         if st_col and st_col.lower() != "matching":
-            out.append(f"{st_col} stitching ({stitch})")
+            out.append(f"{st_col} {stitch}")
         elif st_col.lower() == "matching":
-            out.append(f"matching stitching ({stitch})")
+            out.append(f"matching {stitch}")
         else:
             out.append(stitch)
     if seams: out.append(seams)
-    if hems: out.append(f"hems: {hems}")
-    if closure: out.append(f"closure: {closure}")
+    if hems: out.append(hems)
+    if closure: out.append(closure)
     return out
 
 def _fabric_phrase(fab: Dict[str, Any]) -> str:
+    """Comprehensive fabric description."""
     if not isinstance(fab, dict): return ""
-    ftype = (fab.get("type") or "").strip()
-    text = (fab.get("texture") or "").strip()
-    weight = (fab.get("weight") or "").strip()
-    finish = (fab.get("finish") or "").strip()
-    bits: List[str] = []
-    if ftype: bits.append(ftype)
-    if text: bits.append(text)
-    if weight: bits.append(f"{weight} weight")
-    if finish: bits.append(f"{finish} finish")
-    return _comma_join(bits)
+    parts = []
+    if fab.get("type"):
+        parts.append(fab["type"])
+    if fab.get("texture"):
+        parts.append(fab["texture"])
+    if fab.get("weight"):
+        parts.append(f"{fab['weight']}-weight")
+    if fab.get("finish"):
+        parts.append(fab["finish"])
+    return ", ".join(parts)
 
 def _garment_summary(rec: Dict[str, Any]) -> str:
     g = rec.get("garment") or {}
@@ -135,9 +136,7 @@ def _garment_summary(rec: Dict[str, Any]) -> str:
     return " and ".join(parts)
 
 def _details_phrase(rec: Dict[str, Any]) -> str:
-    """
-    Prefer structured details if present; otherwise use the string list.
-    """
+    """Extract details from structured or string list."""
     dets = rec.get("details_struct")
     if not dets:
         dets = rec.get("details")
@@ -153,75 +152,165 @@ def _details_phrase(rec: Dict[str, Any]) -> str:
             elif label:         bits.append(label)
         elif isinstance(d, str):
             if d.strip(): bits.append(d.strip())
-    return f"details: {', '.join(bits)}" if bits else ""
+    return ", ".join(bits) if bits else ""
 
 def prompt_line(rec: Dict[str, Any]) -> str:
+    """
+    Generate comprehensive prompt text with fabric, construction, and photography details.
+    Format: garment | fabric | colors | construction | photography
+    """
     r = Record(**rec) if not isinstance(rec, Record) else rec
     rec = r.model_dump(mode="python", exclude_none=False)
 
+    # 1. GARMENT CORE
     summary = _garment_summary(rec)
-    fabric = _fabric_phrase(rec.get("fabric") or {})
-
+    
+    # 2. FABRIC (detailed)
+    fabric_str = _fabric_phrase(rec.get("fabric") or {})
+    
+    # 3. SILHOUETTE & FIT
+    silhouette = rec.get("silhouette", "").strip()
+    fit = rec.get("fit_and_drape", "").strip()
+    
+    # 4. COLORS (primary, secondary, pattern)
+    colors = [c for c in (rec.get("color_palette") or []) if c]
+    color_primary = rec.get("color_primary") or (colors[0] if len(colors) > 0 else "")
+    color_secondary = rec.get("color_secondary") or (colors[1] if len(colors) > 1 else "")
+    
+    color_parts = []
+    if color_primary:
+        if color_secondary:
+            color_parts.append(f"{color_primary} with {color_secondary}")
+        else:
+            color_parts.append(color_primary)
+    
+    # Pattern detection
+    colors_obj = rec.get("colors") or {}
+    pattern = colors_obj.get("pattern") if isinstance(colors_obj, dict) else None
+    if isinstance(pattern, dict) and pattern.get("type"):
+        ptype = pattern.get("type", "").replace("_", " ")
+        fg = pattern.get("foreground", "")
+        if ptype and fg:
+            color_parts.append(f"{fg} {ptype}")
+        elif ptype:
+            color_parts.append(ptype)
+    
+    color_str = ", ".join(color_parts)
+    
+    # 5. DETAILS
+    details = _details_phrase(rec)
+    
+    # 6. CONSTRUCTION
     cons = rec.get("construction") or {}
     top_phrase = _piece_cons(cons.get("top") if isinstance(cons.get("top"), dict) else {})
     bot_phrase = _piece_cons(cons.get("bottom") if isinstance(cons.get("bottom"), dict) else {})
     glob_phrase = _global_cons(cons)
-    cons_bits: List[str] = []
-    if top_phrase: cons_bits.append(f"top: {_comma_join(top_phrase)}")
-    if bot_phrase: cons_bits.append(f"bottom: {_comma_join(bot_phrase)}")
-    if not (top_phrase or bot_phrase):
-        cons_bits = glob_phrase
-
-    colors = [c for c in (rec.get("color_palette") or []) if c]
-    color_str = ""
-    if colors:
-        color_str = colors[0] if len(colors) == 1 else f"{colors[0]} + {colors[1]}"
-
-    det_str = _details_phrase(rec)
-
+    
+    cons_parts = []
+    if top_phrase: 
+        cons_parts.append(f"top: {', '.join(top_phrase)}")
+    if bot_phrase: 
+        cons_parts.append(f"bottom: {', '.join(bot_phrase)}")
+    if not (top_phrase or bot_phrase) and glob_phrase:
+        cons_parts.extend(glob_phrase)
+    
+    cons_str = " | ".join(cons_parts)
+    
+    # 7. LAYERS
     gc = rec.get("garment_components") or {}
     layers = gc.get("layers") or []
     layers = layers if isinstance(layers, list) else [layers]
-    layers_str = _comma_join([x for x in layers if x])
-
+    layers_str = ", ".join([x for x in layers if x])
+    
+    # 8. FOOTWEAR
     fw = rec.get("footwear") or {}
-    footwear_str = (fw.get("type") or "").strip() or None
-    if footwear_str and fw.get("color"):
-        footwear_str = f"{footwear_str} ({fw.get('color')})"
-
+    footwear_parts = []
+    if fw.get("type"):
+        if fw.get("color"):
+            footwear_parts.append(f"{fw['color']} {fw['type']}")
+        else:
+            footwear_parts.append(fw['type'])
+    footwear_str = ", ".join(footwear_parts)
+    
+    # 9. PHOTOGRAPHY
     model = rec.get("model") or {}
     cam = rec.get("camera") or {}
     env = rec.get("environment_lighting") or {}
-
-    blocks: List[str] = []
-    head = summary
-    if fabric:    head = f"{head} — {fabric}"
-    if color_str: head = f"{head} — {color_str}"
-    if det_str:   head = f"{head} — {det_str}"
-    blocks.append(head)
-
-    mid: List[str] = []
-    if layers_str:   mid.append(f"layers: {layers_str}")
-    if cons_bits:    mid.append(_comma_join(cons_bits))
-    if footwear_str: mid.append(f"footwear: {footwear_str}")
-    if mid: blocks.append("; ".join(mid))
-
-    tail: List[str] = []
-    if rec.get("pose"):           tail.append(rec["pose"])
-    if model.get("framing"):      tail.append(model["framing"])
-    if model.get("expression"):   tail.append(f"expression: {model['expression']}")
-    if model.get("gaze"):         tail.append(f"gaze: {model['gaze']}")
+    
+    photo_parts = []
+    
+    # Pose
+    if rec.get("pose"):
+        photo_parts.append(rec['pose'])
+    
+    # Model
+    if model.get("framing"):
+        photo_parts.append(model['framing'])
+    if model.get("expression"):
+        photo_parts.append(f"{model['expression']} expression")
+    if model.get("gaze"):
+        photo_parts.append(f"gaze {model['gaze']}")
+    
+    # Camera
     if cam.get("multiview") == "yes" and cam.get("views"):
-        tail.append(f"views: {cam['views']}")
+        photo_parts.append(f"multi-view: {cam['views']}")
     elif cam.get("view"):
-        tail.append(cam["view"])
-    if env.get("setup"):          tail.append(env["setup"])
-    if env.get("mood"):           tail.append(env["mood"])
-    if env.get("background"):     tail.append(env["background"])
-    if rec.get("photo_style"):    tail.append(rec["photo_style"])
-    if tail: blocks.append(", ".join(tail))
+        photo_parts.append(f"{cam['view']} view")
+    if cam.get("angle"):
+        photo_parts.append(f"{cam['angle']} angle")
+    
+    # Lighting
+    if env.get("setup"):
+        photo_parts.append(env['setup'])
+    if env.get("mood"):
+        photo_parts.append(f"{env['mood']} mood")
+    if env.get("background"):
+        photo_parts.append(f"bg: {env['background']}")
+    if rec.get("photo_style"):
+        photo_parts.append(rec['photo_style'])
+    
+    photo_str = ", ".join(photo_parts)
+    
+    # BUILD FINAL PROMPT
+    blocks = []
+    
+    # Block 1: Garment + Fabric + Silhouette/Fit
+    garment_block = [summary]
+    if fabric_str:
+        garment_block.append(fabric_str)
+    if silhouette:
+        garment_block.append(f"{silhouette} silhouette")
+    if fit:
+        garment_block.append(fit)
+    blocks.append(" — ".join(garment_block))
+    
+    # Block 2: Colors + Pattern
+    if color_str:
+        blocks.append(f"Colors: {color_str}")
+    
+    # Block 3: Details
+    if details:
+        blocks.append(f"Details: {details}")
+    
+    # Block 4: Construction
+    if cons_str:
+        blocks.append(f"Construction: {cons_str}")
+    
+    # Block 5: Layers + Footwear
+    extras = []
+    if layers_str:
+        extras.append(f"layers: {layers_str}")
+    if footwear_str:
+        extras.append(f"footwear: {footwear_str}")
+    if extras:
+        blocks.append(" | ".join(extras))
+    
+    # Block 6: Photography
+    if photo_str:
+        blocks.append(f"Photo: {photo_str}")
+    
+    return " || ".join(blocks)
 
-    return "  ".join([b for b in blocks if b]).strip()
 
 class CSVExporter:
     def __init__(self):

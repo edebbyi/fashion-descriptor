@@ -23,7 +23,7 @@ steps:
   - name: gcr.io/cloud-builders/docker
     args: ["push", "us-central1-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_IMAGE}:latest"]
 
-  # Deploy the exact image we just built (using COMMIT_SHA to be precise)
+  # Deploy to Cloud Run with Gemini
   - name: gcr.io/google.com/cloudsdktool/cloud-sdk
     entrypoint: gcloud
     args:
@@ -34,9 +34,13 @@ steps:
       - --region=${_REGION}
       - --allow-unauthenticated
       - --min-instances=0
+      - --max-instances=10
       - --port=8080
-      - --set-env-vars=VD_MODEL=openai
-      - --set-secrets=API_KEY=API_KEY:latest,OPENAI_API_KEY=OPENAI_API_KEY:latest
+      - --memory=2Gi
+      - --cpu=2
+      - --timeout=300
+      - --set-env-vars=VD_MODEL=gemini
+      - --set-secrets=API_KEY=API_KEY:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest
 
 images:
   - us-central1-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_IMAGE}:$COMMIT_SHA

@@ -55,3 +55,14 @@ checkpoints/
 
 # Streamlit
 .streamlit/secrets.toml
+
+#claude dump
+FILES.txt
+GEMINI_SUMMARRY.md
+INDEX.md
+INSTALL.md
+QUICK_START.md
+deploy.sh
+PROMPT_TEXT_ENHANCEMENT.md
+DEPLOYMENT_COMPLETE.md
+DEPLOYMENT.md

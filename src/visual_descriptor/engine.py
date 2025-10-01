@@ -6,7 +6,7 @@ from typing import Dict, Any, List
 from .multipass_merge import merge_pass
 from .normalize_vocab import normalize_record
 from .schema import Record
-from .captioners import StubCaptioner, Blip2Captioner, OpenAIVLM as CaptionersOpenAIVLM
+from .captioners import StubCaptioner, Blip2Captioner, OpenAIVLM as CaptionersOpenAIVLM, GeminiVLM as CaptionersGeminiVLM
 from .utils import img_hash, is_image
 
 # Safe import (no-op if the symbol is absent in your validators.py)
@@ -144,16 +144,20 @@ def _sanitize_types(rec: Dict[str, Any]) -> None:
 class Engine:
     def __init__(self, model: str = "stub", normalize: bool = True):
         self.normalize = normalize
-        # your GPT-4o wrapper lives in captioners.py
-        if model == "openai" and CaptionersOpenAIVLM is not None:
+        
+        # Choose backend: gemini > openai > blip2 > stub
+        if model == "gemini" and CaptionersGeminiVLM is not None:
+            self.model = CaptionersGeminiVLM()  # Gemini Flash 2.5
+            self.using_gemini = True
+        elif model == "openai" and CaptionersOpenAIVLM is not None:
             self.model = CaptionersOpenAIVLM()  # GPT-4o-backed VLM
-            self.using_openai = True
+            self.using_gemini = False
         elif model == "blip2" and Blip2Captioner is not None:
             self.model = Blip2Captioner()
-            self.using_openai = False
+            self.using_gemini = False
         else:
             self.model = StubCaptioner()
-            self.using_openai = False
+            self.using_gemini = False
 
     def describe_image(self, path: Path, passes: List[str]) -> Dict[str, Any]:
         # coerce to Path in case a string sneaks in
@@ -190,7 +194,7 @@ class Engine:
         if self.normalize:
             rec = normalize_record(rec)
 
-        # IMPORTANT: pixel/SLIC fallback is DISABLED. We trust GPT-4o only.
+        # IMPORTANT: pixel/SLIC fallback is DISABLED. We trust VLM only.
 
         # metadata + field defaults
         rec.setdefault("version", "vd_v1.0.0")
@@ -210,8 +214,18 @@ class Engine:
         allowed = set(Record.model_fields.keys())
         r = Record(**{k: v for k, v in rec.items() if k in allowed})
 
-        # include keys even if values are None
-        return r.model_dump(mode="python", exclude_none=False)
+        # Convert to dict
+        output = r.model_dump(mode="python", exclude_none=False)
+        
+        # Generate and add prompt_text
+        try:
+            from .export_csv_prompt import prompt_line
+            output["prompt_text"] = prompt_line(output)
+        except Exception as e:
+            # If prompt generation fails, include a basic fallback
+            output["prompt_text"] = f"{output.get('garment_type', 'garment')} - {output.get('image_id', '')}"
+        
+        return output
 
     def enumerate_inputs(self, in_path: Path) -> List[Path]:
         # keep your original non-recursive behavior
