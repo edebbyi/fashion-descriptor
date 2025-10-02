@@ -159,8 +159,13 @@ def prompt_line(rec: Dict[str, Any]) -> str:
     Generate comprehensive prompt text with fabric, construction, and photography details.
     Format: garment | fabric | colors | construction | photography
     """
-    r = Record(**rec) if not isinstance(rec, Record) else rec
-    rec = r.model_dump(mode="python", exclude_none=False)
+    # DEFENSIVE: Work directly with the dict, don't convert to Record
+    # This avoids validation errors when called from engine.py
+    if isinstance(rec, Record):
+        rec = rec.model_dump(mode="python", exclude_none=False)
+    else:
+        # Make a copy to avoid mutating the original
+        rec = dict(rec)
 
     # 1. GARMENT CORE
     summary = _garment_summary(rec)
@@ -169,13 +174,27 @@ def prompt_line(rec: Dict[str, Any]) -> str:
     fabric_str = _fabric_phrase(rec.get("fabric") or {})
     
     # 3. SILHOUETTE & FIT
-    silhouette = rec.get("silhouette", "").strip()
-    fit = rec.get("fit_and_drape", "").strip()
+    silhouette = rec.get("silhouette", "")
+    if silhouette:
+        silhouette = str(silhouette).strip()
+    fit = rec.get("fit_and_drape", "")
+    if fit:
+        fit = str(fit).strip()
     
-    # 4. COLORS (primary, secondary, pattern)
-    colors = [c for c in (rec.get("color_palette") or []) if c]
-    color_primary = rec.get("color_primary") or (colors[0] if len(colors) > 0 else "")
-    color_secondary = rec.get("color_secondary") or (colors[1] if len(colors) > 1 else "")
+    # 4. COLORS (use top-level color_primary/color_secondary if available)
+    color_primary = rec.get("color_primary", "")
+    if color_primary:
+        color_primary = str(color_primary).strip()
+    color_secondary = rec.get("color_secondary", "")
+    if color_secondary:
+        color_secondary = str(color_secondary).strip()
+    
+    # Fallback to color_palette if top-level colors not set
+    if not color_primary:
+        palette = [c for c in (rec.get("color_palette") or []) if c]
+        color_primary = palette[0] if len(palette) > 0 else ""
+        if not color_secondary:
+            color_secondary = palette[1] if len(palette) > 1 else ""
     
     color_parts = []
     if color_primary:
@@ -188,8 +207,10 @@ def prompt_line(rec: Dict[str, Any]) -> str:
     colors_obj = rec.get("colors") or {}
     pattern = colors_obj.get("pattern") if isinstance(colors_obj, dict) else None
     if isinstance(pattern, dict) and pattern.get("type"):
-        ptype = pattern.get("type", "").replace("_", " ")
+        ptype = str(pattern.get("type", "")).replace("_", " ")
         fg = pattern.get("foreground", "")
+        if fg:
+            fg = str(fg)
         if ptype and fg:
             color_parts.append(f"{fg} {ptype}")
         elif ptype:
@@ -220,7 +241,7 @@ def prompt_line(rec: Dict[str, Any]) -> str:
     gc = rec.get("garment_components") or {}
     layers = gc.get("layers") or []
     layers = layers if isinstance(layers, list) else [layers]
-    layers_str = ", ".join([x for x in layers if x])
+    layers_str = ", ".join([str(x) for x in layers if x])
     
     # 8. FOOTWEAR
     fw = rec.get("footwear") or {}
@@ -229,7 +250,7 @@ def prompt_line(rec: Dict[str, Any]) -> str:
         if fw.get("color"):
             footwear_parts.append(f"{fw['color']} {fw['type']}")
         else:
-            footwear_parts.append(fw['type'])
+            footwear_parts.append(str(fw['type']))
     footwear_str = ", ".join(footwear_parts)
     
     # 9. PHOTOGRAPHY
@@ -240,12 +261,13 @@ def prompt_line(rec: Dict[str, Any]) -> str:
     photo_parts = []
     
     # Pose
-    if rec.get("pose"):
-        photo_parts.append(rec['pose'])
+    pose = rec.get("pose")
+    if pose:
+        photo_parts.append(str(pose))
     
     # Model
     if model.get("framing"):
-        photo_parts.append(model['framing'])
+        photo_parts.append(str(model['framing']))
     if model.get("expression"):
         photo_parts.append(f"{model['expression']} expression")
     if model.get("gaze"):
@@ -261,13 +283,13 @@ def prompt_line(rec: Dict[str, Any]) -> str:
     
     # Lighting
     if env.get("setup"):
-        photo_parts.append(env['setup'])
+        photo_parts.append(str(env['setup']))
     if env.get("mood"):
         photo_parts.append(f"{env['mood']} mood")
     if env.get("background"):
         photo_parts.append(f"bg: {env['background']}")
     if rec.get("photo_style"):
-        photo_parts.append(rec['photo_style'])
+        photo_parts.append(str(rec['photo_style']))
     
     photo_str = ", ".join(photo_parts)
     
@@ -326,11 +348,12 @@ class CSVExporter:
     def add_flat(self, d: Dict[str, Any]) -> None:
         d = dict(d)
 
-        # Backfill primary/secondary from descriptive palette
-        palette = [c for c in (d.get("color_palette") or []) if c]
+        # Use top-level color_primary/color_secondary if available
         if not d.get("color_primary"):
+            palette = [c for c in (d.get("color_palette") or []) if c]
             d["color_primary"] = palette[0] if len(palette) > 0 else None
         if not d.get("color_secondary"):
+            palette = [c for c in (d.get("color_palette") or []) if c]
             d["color_secondary"] = palette[1] if len(palette) > 1 else None
 
         d["prompt_text"] = prompt_line(d)

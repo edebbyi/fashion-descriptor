@@ -1,6 +1,6 @@
 # src/visual_descriptor/schema.py
 from __future__ import annotations
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, ClassVar
 from pydantic import BaseModel, Field, ConfigDict, field_validator
 
 def _default_fabric() -> Dict[str, Optional[str]]:
@@ -55,6 +55,11 @@ class Record(BaseModel):
     camera: Dict[str, Optional[str]] = Field(default_factory=_default_camera)
 
     color_palette: List[str] = Field(default_factory=list)
+    
+    # ADD THESE TWO FIELDS FOR TOP-LEVEL COLOR ACCESS
+    color_primary: Optional[str] = None
+    color_secondary: Optional[str] = None
+    
     details: List[str] = Field(default_factory=list)
     styling: Dict[str, Optional[str]] = Field(default_factory=lambda: {"layering": None, "accessories": None})
     notes_uncertain: List[str] = Field(default_factory=list)
@@ -62,6 +67,9 @@ class Record(BaseModel):
     photo_metrics: Dict[str, float] = Field(default_factory=dict)
 
     confidence: Dict[str, float] = Field(default_factory=dict)
+    
+    prompt_text: Optional[str] = None  # Human-readable description
+    
     version: Optional[str] = None
     source_hash: Optional[str] = None
 
@@ -156,7 +164,8 @@ class Record(BaseModel):
         s = str(v).strip()
         return [s] if s else []
 
-    CSV_FIELDS: List[str] = [
+    # THIS IS THE KEY FIX: Add ClassVar to prevent CSV_FIELDS from being serialized
+    CSV_FIELDS: ClassVar[List[str]] = [
         "image_id",
         "garment_type", "silhouette",
         "garment.top_style", "garment.top_sleeve", "garment.top",
@@ -185,8 +194,8 @@ class Record(BaseModel):
             return (d or {}).get(k) or ""
 
         colors = [c for c in (self.color_palette or []) if c]
-        color_primary = colors[0] if len(colors) > 0 else ""
-        color_secondary = colors[1] if len(colors) > 1 else ""
+        color_primary = self.color_primary or (colors[0] if len(colors) > 0 else "")
+        color_secondary = self.color_secondary or (colors[1] if len(colors) > 1 else "")
 
         gc = self.garment_components if isinstance(self.garment_components, dict) else {}
         layers_val = gc.get("layers")
@@ -253,7 +262,7 @@ class Record(BaseModel):
             "photo_style": self.photo_style or "",
             "photo_metrics.specularity": str((self.photo_metrics or {}).get("specularity", "")),
             "photo_metrics.translucency": str((self.photo_metrics or {}).get("translucency", "")),
-            "prompt_text": "",  # exporter fills this
+            "prompt_text": self.prompt_text or "",
         }
 
         flat.update(part(self.construction, "top"))
