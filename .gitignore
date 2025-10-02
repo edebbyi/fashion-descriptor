@@ -58,7 +58,7 @@ checkpoints/
 
 #claude dump
 FILES.txt
-GEMINI_SUMMARRY.md
+GEMINI_SUMMARY.md
 INDEX.md
 INSTALL.md
 QUICK_START.md

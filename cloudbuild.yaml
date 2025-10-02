@@ -11,26 +11,26 @@ steps:
     args:
       - build
       - -t
-      - us-central1-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_IMAGE}:$COMMIT_SHA
+      - us-central1-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_IMAGE}:$BUILD_ID
       - -t
       - us-central1-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_IMAGE}:latest
       - .
 
   # Push both tags
   - name: gcr.io/cloud-builders/docker
-    args: ["push", "us-central1-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_IMAGE}:$COMMIT_SHA"]
+    args: ["push", "us-central1-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_IMAGE}:$BUILD_ID"]
 
   - name: gcr.io/cloud-builders/docker
     args: ["push", "us-central1-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_IMAGE}:latest"]
 
-  # Deploy to Cloud Run with Gemini
+  # Deploy to Cloud Run
   - name: gcr.io/google.com/cloudsdktool/cloud-sdk
     entrypoint: gcloud
     args:
       - run
       - deploy
       - ${_SERVICE}
-      - --image=us-central1-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_IMAGE}:$COMMIT_SHA
+      - --image=us-central1-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_IMAGE}:$BUILD_ID
       - --region=${_REGION}
       - --allow-unauthenticated
       - --min-instances=0
@@ -43,5 +43,5 @@ steps:
       - --set-secrets=API_KEY=API_KEY:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest
 
 images:
-  - us-central1-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_IMAGE}:$COMMIT_SHA
+  - us-central1-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_IMAGE}:$BUILD_ID
   - us-central1-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_IMAGE}:latest
