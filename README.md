@@ -121,25 +121,9 @@ export VD_MODEL=stub      # Testing only
 python -m src.cli --passes A,B,C --in image.jpg
 ```
 
-## Deployment
+## API Reference
 
-See [deployment.md](deployment.md) for Cloud Run, Docker, and production setup.
-
-## Development
-
-```bash
-# Run tests
-pytest
-
-# Format code
-black src/ tests/
-
-# Lint
-pylint src/
-
-# Type check
-mypy src/
-```
+See [docs/api.md](docs/api.md) for Cloud Run base URL, endpoints, auth, and examples.
 
 ## Project Structure
 
@@ -147,14 +131,23 @@ mypy src/
 visual-descriptor/
 ├── api/
 │   └── app.py              # FastAPI server
+├── docs/
+│   └── api.md
+├── prompts/
+│   └── passA_global.txt
+│   └── passB_construction.txt
+│   └── passC_pose_lighting.txt
+│   └── system.txt     
 ├── src/
 │   └── visual_descriptor/
 │       ├── captioners/     # AI model backends
 │       ├── engine.py       # Core orchestration
 │       ├── schema.py       # Pydantic models
 │       └── multipass_merge.py
+├── tests/
+│   └──test_gemini.py             # Streamlit UI
 ├── ui/
-│   ├── app.py             # Streamlit UI
+│   └── app.py             # Streamlit UI
 │   └── pages/             # UI pages
 ├── requirements.txt
 ├── Dockerfile
@@ -210,7 +203,7 @@ MIT License - see [LICENSE](LICENSE)
 ## Support
 
 - Issues: artofesosa@gmail.com
-- Docs: [deployment.md](deployment.md), [api.md](api.md)
+- Docs: [api.md](api.md)
 
 ---
 
