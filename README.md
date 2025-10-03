@@ -408,4 +408,4 @@ MIT License - see [LICENSE](LICENSE)
 
 ---
 
-**Built for fashion tech** 👗✨
+**Developed by E. Deborah I.** 👗✨
