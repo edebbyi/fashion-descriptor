@@ -247,10 +247,11 @@ with col2:
     - [Documentation](#)
     - [GitHub Repository](#)
     - [Report Issues](#)
-    
-    **Developer:** Deborah Imafidon
                 
     **License:** MIT
+
+    **Developer:** Deborah Imafidon                        
+
     """)
 
 st.markdown("---")
