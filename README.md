@@ -21,6 +21,32 @@ uvicorn api.app:app --reload         # API at localhost:8000
 python -m src.cli --in image.jpg --out outputs --model gemini
 ```
 
+## Makefile Commands
+
+Convenient shortcuts for development and testing:
+
+```bash
+make ui         # Launch Streamlit interface (localhost:8501)
+make api        # Start FastAPI server (localhost:8000) with hot reload
+make run        # Run CLI with example parameters
+make test       # Run pytest test suite
+```
+
+**Examples:**
+```bash
+# Start the web UI
+make ui
+
+# Start the API server for development
+make api
+
+# Run batch processing
+make run
+
+# Run tests
+make test
+```
+
 ## Features
 
 - **Multi-pass analysis**: Global → Construction → Presentation
@@ -121,9 +147,151 @@ export VD_MODEL=stub      # Testing only
 python -m src.cli --passes A,B,C --in image.jpg
 ```
 
+## Deployment
+
+### Local Development
+
+Use the Makefile for quick local development:
+
+```bash
+# UI development
+make ui
+
+# API development with auto-reload
+make api
+```
+
+### Docker Build
+
+```bash
+# Build image
+docker build -t visual-descriptor:latest .
+
+# Run container
+docker run -p 8080:8080 \
+  -e GEMINI_API_KEY=your_key \
+  -e API_KEY=your_auth_key \
+  -e VD_MODEL=gemini \
+  visual-descriptor:latest
+```
+
+### Google Cloud Run Deployment
+
+The project includes automated deployment via Cloud Build:
+
+#### Prerequisites
+
+```bash
+# Install gcloud CLI
+# https://cloud.google.com/sdk/docs/install
+
+# Set project
+gcloud config set project YOUR_PROJECT_ID
+
+# Enable required APIs
+gcloud services enable \
+  cloudbuild.googleapis.com \
+  run.googleapis.com \
+  artifactregistry.googleapis.com
+
+# Create Artifact Registry repository
+gcloud artifacts repositories create visual-descriptor \
+  --repository-format=docker \
+  --location=us-central1
+
+# Store secrets
+echo -n "your_api_key" | gcloud secrets create API_KEY --data-file=-
+echo -n "your_gemini_key" | gcloud secrets create GEMINI_API_KEY --data-file=-
+```
+
+#### Deploy with Cloud Build
+
+The `cloudbuild.yaml` configuration handles:
+- Building the Docker image
+- Pushing to Artifact Registry
+- Deploying to Cloud Run with:
+  - Auto-scaling (0-10 instances)
+  - 2GB memory, 2 CPUs
+  - 5-minute timeout
+  - Environment variables and secrets injection
+
+**Trigger deployment:**
+
+```bash
+# Manual deployment
+gcloud builds submit --config cloudbuild.yaml
+
+# Or set up automatic deployment from GitHub
+gcloud builds triggers create github \
+  --repo-name=YOUR_REPO \
+  --repo-owner=YOUR_GITHUB_USER \
+  --branch-pattern="^main$" \
+  --build-config=cloudbuild.yaml
+```
+
+**Cloud Build Configuration** (`cloudbuild.yaml`):
+```yaml
+substitutions:
+  _SERVICE: visual-descriptor
+  _REGION: us-central1
+  _REPO: visual-descriptor
+  _IMAGE: app
+
+steps:
+  # Builds Docker image and tags with BUILD_ID and latest
+  # Pushes both tags to Artifact Registry
+  # Deploys to Cloud Run with:
+  #   - VD_MODEL=gemini environment variable
+  #   - API_KEY and GEMINI_API_KEY from Secret Manager
+  #   - Auto-scaling, memory, CPU, and timeout settings
+```
+
+#### Deployment Configuration
+
+Edit `cloudbuild.yaml` to customize:
+- **Service name**: `_SERVICE` substitution
+- **Region**: `_REGION` (default: us-central1)
+- **Resources**: `--memory`, `--cpu` flags
+- **Scaling**: `--min-instances`, `--max-instances`
+- **Timeout**: `--timeout` (default: 300s)
+
+#### Access Deployed Service
+
+```bash
+# Get service URL
+gcloud run services describe visual-descriptor \
+  --region=us-central1 \
+  --format='value(status.url)'
+
+# Test health endpoint
+curl https://visual-descriptor-xxx-uc.a.run.app/healthz
+
+# Analyze image
+curl -X POST https://visual-descriptor-xxx-uc.a.run.app/v1/jobs \
+  -H "Authorization: Bearer your_api_key" \
+  -F "file=@image.jpg"
+```
+
+#### Monitoring
+
+```bash
+# View logs
+gcloud run services logs read visual-descriptor \
+  --region=us-central1 \
+  --limit=50
+
+# View metrics in Cloud Console
+# https://console.cloud.google.com/run
+```
+
 ## API Reference
 
-See [docs/api.md](docs/api.md) for Cloud Run base URL, endpoints, auth, and examples.
+See [docs/api.md](docs/api.md) for:
+- Cloud Run base URL
+- Complete endpoint documentation
+- Authentication details
+- Rate limiting information
+- Example requests and responses
 
 ## Project Structure
 
@@ -132,11 +300,11 @@ visual-descriptor/
 ├── api/
 │   └── app.py              # FastAPI server
 ├── docs/
-│   └── api.md
+│   └── api.md              # API documentation
 ├── prompts/
-│   └── passA_global.txt
-│   └── passB_construction.txt
-│   └── passC_pose_lighting.txt
+│   ├── passA_global.txt
+│   ├── passB_construction.txt
+│   ├── passC_pose_lighting.txt
 │   └── system.txt     
 ├── src/
 │   └── visual_descriptor/
@@ -145,17 +313,21 @@ visual-descriptor/
 │       ├── schema.py       # Pydantic models
 │       └── multipass_merge.py
 ├── tests/
-│   └──test_gemini.py             # Streamlit UI
+│   └── test_gemini.py      # Backend tests
 ├── ui/
-│   └── app.py             # Streamlit UI
-│   └── pages/             # UI pages
-├── requirements.txt
-├── Dockerfile
-└── deploy.sh
+│   ├── app.py              # Streamlit UI
+│   └── pages/              # UI pages
+├── Dockerfile              # Container image
+├── Makefile                # Development shortcuts
+├── cloudbuild.yaml         # Cloud deployment config
+└── requirements.tct        # Python dependencies     
 ```
 
 ## Key Files
 
+- **`Makefile`**: Development shortcuts (ui, api, run, test)
+- **`cloudbuild.yaml`**: Automated Cloud Run deployment
+- **`Dockerfile`**: Production container image
 - **`engine.py`**: Main orchestrator, handles multi-pass workflow
 - **`captioners/gemini_vlm.py`**: Gemini backend
 - **`captioners/openai_vlm.py`**: GPT-4o backend
@@ -196,6 +368,11 @@ export GEMINI_API_KEY=your_key
 - Run all 3 passes (A,B,C)
 - Try switching models
 
+**Cloud Build deployment fails**
+- Verify APIs are enabled
+- Check Secret Manager has API_KEY and GEMINI_API_KEY
+- Review logs: `gcloud builds log --region=us-central1`
+
 ## License
 
 MIT License - see [LICENSE](LICENSE)
@@ -203,7 +380,7 @@ MIT License - see [LICENSE](LICENSE)
 ## Support
 
 - Issues: artofesosa@gmail.com
-- Docs: [api.md](api.md)
+- Docs: [api.md](docs/api.md)
 
 ---
 
