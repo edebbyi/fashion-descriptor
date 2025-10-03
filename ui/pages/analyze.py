@@ -126,11 +126,35 @@ with col1:
 
 with col2:
     if st.session_state.analyzed_images:
-        if st.button("💾 Save to Collection", use_container_width=True):
+        if st.button("💾 Save to Gallery", use_container_width=True):
+            # Get existing image IDs in gallery
+            existing_ids = {r.get("image_id") or r.get("_image_file") 
+                          for r in st.session_state.collection}
+            
+            # Add only new images
+            added = 0
+            skipped = 0
             for record in st.session_state.analyzed_images:
-                if record not in st.session_state.collection:
+                record_id = record.get("image_id") or record.get("_image_file")
+                if record_id not in existing_ids:
                     st.session_state.collection.append(record)
-            st.success(f"Saved {len(st.session_state.analyzed_images)} images!")
+                    existing_ids.add(record_id)
+                    added += 1
+                else:
+                    skipped += 1
+            
+            # Clear analyzed images after saving
+            st.session_state.analyzed_images = []
+            
+            # Show appropriate message
+            if added > 0 and skipped > 0:
+                st.success(f"✅ Saved {added} new image(s), skipped {skipped} duplicate(s)")
+            elif added > 0:
+                st.success(f"✅ Saved {added} image(s) to gallery!")
+            else:
+                st.info(f"ℹ️ All {skipped} image(s) already in gallery")
+            
+            st.rerun()
 
 if not can_analyze and uploaded_files:
     st.warning("⚠️ Please add an API key in the sidebar before analyzing.")
@@ -172,6 +196,7 @@ if analyze_btn and uploaded_files:
 if st.session_state.analyzed_images:
     st.markdown("---")
     st.markdown("## 📊 Analysis Results")
+    st.info(f"👇 **{len(st.session_state.analyzed_images)} image(s) analyzed** - Click 'Save to Gallery' above to keep them permanently")
     
     # Grid view
     cols = st.columns(3)

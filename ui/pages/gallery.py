@@ -5,16 +5,42 @@ st.title("📊 Gallery")
 st.markdown("*View and compare your analyzed images*")
 st.markdown("---")
 
-# Check if we have results
-all_records = st.session_state.analyzed_images + st.session_state.collection
+# Check what we have
+has_analyzed = len(st.session_state.analyzed_images) > 0
+has_collection = len(st.session_state.collection) > 0
+
+# Show workflow hint if they have analyzed but not saved
+if has_analyzed and not has_collection:
+    st.info("💡 **Tip**: If you have not saved your analyzed images yet. Go to the **analyze** page and click '💾 Save to Gallery' to keep them permanently!")
+
+# View selector
+view_option = st.radio(
+    "📁 Show:",
+    ["🎯 Gallery (Saved)", "🔬 Recent Analysis", "🌐 All Images"],
+    horizontal=True,
+    help="Gallery = permanently saved | Recent Analysis = temporary | All = both combined"
+)
+
+# Determine which records to show
+if view_option == "🎯 Gallery (Saved)":
+    all_records = st.session_state.collection
+    if not all_records:
+        st.warning("📭 Your gallery is empty!")
+        st.markdown("Go to the **analyze** page to process images, then save them to your gallery.")
+elif view_option == "🔬 Recent Analysis":
+    all_records = st.session_state.analyzed_images
+    if not all_records:
+        st.info("🔍 No recent analysis!")
+        st.markdown("Go to the **analyze** page to process new fashion images.")
+else:  # All Images
+    all_records = st.session_state.collection + st.session_state.analyzed_images
+    if not all_records:
+        st.info("👋 No images yet!")
+        st.markdown("Go to the **analyze** page to get started.")
 
 if not all_records:
-    st.info("👋 No images analyzed yet!")
-    st.markdown("Go to the **analyze** page to process some fashion images.")
-    
     if st.button("🔍 Go to Analyze Page", use_container_width=True):
         st.switch_page("pages/analyze.py")
-    
 else:
     # Summary metrics
     st.markdown("### 📈 Summary")
