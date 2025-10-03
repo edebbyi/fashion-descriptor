@@ -1,156 +1,221 @@
 import streamlit as st
 
-def show():
-    """Home page with overview and features"""
+st.title("🏠 Welcome to Visual Descriptor AI")
+st.markdown("*AI-powered fashion image analysis for creative directors*")
+st.markdown("---")
+
+# Hero section
+col1, col2 = st.columns([2, 1])
+
+with col1:
+    st.markdown("""
+    ## Transform Fashion Images into Data
     
-    # Hero section
-    col1, col2 = st.columns([2, 1])
+    Use state-of-the-art computer vision to extract detailed technical specifications 
+    from fashion photography. Perfect for:
     
-    with col1:
-        st.markdown("## Welcome to Visual Descriptor AI")
-        st.markdown("""
-        Transform fashion images into structured, actionable data using state-of-the-art 
-        computer vision. Perfect for:
-        
-        - **E-commerce**: Auto-generate product descriptions
-        - **Design Studios**: Analyze competitor collections  
-        - **Fashion Tech**: Build recommendation engines
-        - **Research**: Dataset annotation at scale
-        """)
-        
-        if st.button("🚀 Start Analyzing", type="primary", use_container_width=True):
-            st.session_state["page"] = "🔍 Analyze"
-            st.rerun()
+    - **E-commerce Teams**: Auto-generate product descriptions at scale
+    - **Design Studios**: Analyze competitor collections and trends  
+    - **Fashion Tech**: Build recommendation and discovery engines
+    - **Research**: Create annotated datasets for machine learning
+    """)
     
-    with col2:
-        st.image("https://via.placeholder.com/400x300/667eea/ffffff?text=Fashion+AI", 
-                 use_container_width=True)
+    if st.button("🚀 Start Analyzing Now", type="primary", use_container_width=True):
+        st.switch_page("pages/analyze.py")
+
+with col2:
+    st.info("""
+    ### Quick Stats
     
-    st.markdown("---")
+    **50+** Data Fields  
+    **3** Analysis Passes  
+    **2-4s** Per Image  
+    **FREE** with Gemini
+    """)
+
+st.markdown("---")
+
+# Features
+st.markdown("## 🎯 Key Features")
+
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    st.markdown("""
+    ### 🎨 Fabric Analysis
     
-    # Features grid
-    st.markdown("## 🎯 Key Features")
+    Identify materials with precision:
     
-    col1, col2, col3 = st.columns(3)
+    - **Type**: Jersey, denim, wool, silk, satin
+    - **Texture**: Smooth, ribbed, quilted, brushed
+    - **Weight**: Light, medium, heavy
+    - **Finish**: Matte, semi-gloss, glossy
+    """)
+
+with col2:
+    st.markdown("""
+    ### 🧵 Construction Details
     
-    with col1:
-        st.markdown("""
-        <div class="feature-card">
-            <h3>🎨 Fabric Analysis</h3>
-            <p>Identify material type, texture, weight, and finish with precision</p>
-            <ul>
-                <li>Jersey, denim, wool, silk</li>
-                <li>Smooth, ribbed, quilted</li>
-                <li>Light, medium, heavy</li>
-                <li>Matte, semi-gloss, glossy</li>
-            </ul>
-        </div>
-        """, unsafe_allow_html=True)
+    Detect garment construction:
     
-    with col2:
-        st.markdown("""
-        <div class="feature-card">
-            <h3>🧵 Construction Details</h3>
-            <p>Detect seams, stitching, closures, and finishing techniques</p>
-            <ul>
-                <li>Princess seams, flat-felled</li>
-                <li>Contrast topstitching</li>
-                <li>Exposed zippers, buttons</li>
-                <li>Hem types and finishes</li>
-            </ul>
-        </div>
-        """, unsafe_allow_html=True)
+    - **Seams**: Princess, flat-felled, panel
+    - **Stitching**: Topstitch, contrast, decorative
+    - **Closures**: Zippers, buttons, drawstrings
+    - **Hems**: Raw edge, rolled, topstitched
+    """)
+
+with col3:
+    st.markdown("""
+    ### 🌈 Colors & Patterns
     
-    with col3:
-        st.markdown("""
-        <div class="feature-card">
-            <h3>🌈 Color & Patterns</h3>
-            <p>Extract color palettes and identify patterns automatically</p>
-            <ul>
-                <li>Primary & secondary colors</li>
-                <li>Polka dots, stripes, plaid</li>
-                <li>Pattern foreground/background</li>
-                <li>Accent colors (buttons, zippers)</li>
-            </ul>
-        </div>
-        """, unsafe_allow_html=True)
+    Extract color intelligence:
     
-    st.markdown("---")
+    - **Primary & secondary** colors
+    - **Pattern detection**: Polka dots, stripes, plaid
+    - **Foreground/background** separation
+    - **Accent colors**: Hardware, stitching, trim
+    """)
+
+st.markdown("---")
+
+# How it works
+st.markdown("## 🔬 How It Works")
+
+col1, col2, col3, col4 = st.columns(4)
+
+with col1:
+    st.markdown("""
+    ### 1. Upload 📤
     
-    # How it works
-    st.markdown("## 🔬 How It Works")
+    Drop your fashion images or upload from device
+    """)
+
+with col2:
+    st.markdown("""
+    ### 2. Analyze 🤖
     
-    col1, col2, col3, col4 = st.columns(4)
+    AI processes through 3 analysis passes
+    """)
+
+with col3:
+    st.markdown("""
+    ### 3. Review 👀
     
-    with col1:
-        st.markdown("""
-        **1. Upload** 📤  
-        Drop your fashion images or upload from your device
-        """)
+    Explore structured data and visualizations
+    """)
+
+with col4:
+    st.markdown("""
+    ### 4. Export 💾
     
-    with col2:
-        st.markdown("""
-        **2. Analyze** 🤖  
-        AI processes through multiple analysis passes
-        """)
+    Download JSON, CSV, or AI training prompts
+    """)
+
+st.markdown("---")
+
+# Analysis passes
+st.markdown("## 📋 Three-Pass Analysis System")
+
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    st.markdown("""
+    ### Pass A: Global Analysis
     
-    with col3:
-        st.markdown("""
-        **3. Review** 👀  
-        Explore structured data and visualizations
-        """)
+    **Comprehensive overview:**
+    - Garment type & silhouette
+    - Fabric identification
+    - Color palette & patterns
+    - Overall composition
+    - Footwear detection
+    """)
+
+with col2:
+    st.markdown("""
+    ### Pass B: Construction
     
-    with col4:
-        st.markdown("""
-        **4. Export** 💾  
-        Download JSON, CSV, or prompt text
-        """)
+    **Technical details:**
+    - Seam types & placement
+    - Stitching techniques & colors
+    - Closures & hardware
+    - Hem finishes
+    - Top/bottom separation
+    """)
+
+with col3:
+    st.markdown("""
+    ### Pass C: Presentation
     
-    st.markdown("---")
+    **Photography analysis:**
+    - Model pose & framing
+    - Camera angle & view
+    - Lighting setup & mood
+    - Background & environment
+    - Photo style classification
+    """)
+
+st.markdown("---")
+
+# API Keys section
+st.markdown("## 🔑 Getting Started")
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.markdown("""
+    ### Gemini Flash 2.5 (Recommended)
     
-    # Stats
-    st.markdown("## 📊 Capabilities")
+    **Best for fashion analysis:**
+    - ⭐⭐⭐⭐⭐ Quality
+    - **FREE** with rate limits
+    - 2-4 seconds per image
+    - Superior color/construction detection
     
-    col1, col2, col3, col4 = st.columns(4)
+    **Get your key:**  
+    [Google AI Studio →](https://aistudio.google.com/app/apikey)
+    """)
     
-    with col1:
-        st.markdown("""
-        <div class="metric-container">
-            <h2>50+</h2>
-            <p>Data Fields</p>
-        </div>
-        """, unsafe_allow_html=True)
+    if not st.session_state.gemini_api_key:
+        st.warning("⚠️ No Gemini API key set")
+    else:
+        st.success("✅ Gemini API key configured")
+
+with col2:
+    st.markdown("""
+    ### OpenAI GPT-4o (Alternative)
     
-    with col2:
-        st.markdown("""
-        <div class="metric-container">
-            <h2>3</h2>
-            <p>Analysis Passes</p>
-        </div>
-        """, unsafe_allow_html=True)
+    **High quality general purpose:**
+    - ⭐⭐⭐⭐ Quality
+    - ~$0.03 per image
+    - 3-5 seconds per image
+    - Good overall performance
     
-    with col3:
-        st.markdown("""
-        <div class="metric-container">
-            <h2>2-4s</h2>
-            <p>Per Image</p>
-        </div>
-        """, unsafe_allow_html=True)
+    **Get your key:**  
+    [OpenAI Platform →](https://platform.openai.com/api-keys)
+    """)
     
-    with col4:
-        st.markdown("""
-        <div class="metric-container">
-            <h2>100%</h2>
-            <p>Accuracy Goal</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    st.markdown("---")
-    
-    # CTA
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        st.markdown("### Ready to analyze your fashion images?")
-        if st.button("🎯 Go to Analyze Page", type="primary", use_container_width=True):
-            st.session_state["page"] = "🔍 Analyze"
-            st.rerun()
+    if not st.session_state.openai_api_key:
+        st.warning("⚠️ No OpenAI API key set")
+    else:
+        st.success("✅ OpenAI API key configured")
+
+if not st.session_state.gemini_api_key and not st.session_state.openai_api_key:
+    st.info("💡 **Tip**: Add your API key in the sidebar to start analyzing images!")
+
+st.markdown("---")
+
+# CTA
+col1, col2, col3 = st.columns([1, 2, 1])
+
+with col2:
+    st.markdown("### Ready to analyze your fashion images?")
+    if st.button("🎯 Go to Analyze Page", type="primary", use_container_width=True):
+        st.switch_page("pages/analyze.py")
+
+st.markdown("---")
+
+# Footer
+st.caption("""
+**Visual Descriptor AI** - Powered by Gemini Flash 2.5 & GPT-4o  
+Built for fashion tech innovators 👗✨
+""")
