@@ -196,48 +196,6 @@ export GEMINI_API_KEY=your_key
 - Run all 3 passes (A,B,C)
 - Try switching models
 
-+## Makefile
-+
-+Use the provided targets for common tasks:
-+
-+```bash
-+# run CLI on a folder of images
-+make run
-+
-+# start API (FastAPI/uvicorn at http://localhost:8000)
-+make api
-+
-+# start Web UI (Streamlit at http://localhost:8501)
-+make ui
-+
-+# tests
-+make test
-+```
-+
-+## Cloud Build (optional CI/CD)
-+
-+This repo includes `cloudbuild.yaml` to build and deploy to **Cloud Run**.
-+
-+```bash
-+# from repo root
-+gcloud builds submit --config cloudbuild.yaml
-+```
-+
-+> Expects secrets in **Secret Manager** named `API_KEY` and `GEMINI_API_KEY`.
-+> Example (one-time setup):
-+> ```bash
-+> echo -n 'your_api_key_here' | gcloud secrets create API_KEY --data-file=-
-+> echo -n 'your_gemini_key_here' | gcloud secrets create GEMINI_API_KEY --data-file=-
-+> ```
-+>
-+> Optional overrides:
-+> ```bash
-+> gcloud builds submit \
-+>   --config cloudbuild.yaml \
-+>   --substitutions=_SERVICE=visual-descriptor,_REGION=us-central1
-+> ```
-+
-
 ## License
 
 MIT License - see [LICENSE](LICENSE)
