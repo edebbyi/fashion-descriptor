@@ -4,9 +4,30 @@
 
 REST API for fashion image analysis. Returns structured JSON with garment details.
 
-**Base URL:** `http://localhost:8000` (local) or your Cloud Run URL
+## Base URLs
 
-**Authentication:** Bearer token via `Authorization` header
+* **Production (Cloud Run):** `https://visual-descriptor-me2kgc2t6q-uc.a.run.app`
+* **Local:** `http://localhost:8000`
+
+> Set a base URL for examples:
+>
+> ```bash
+> export VD_BASE_URL="https://visual-descriptor-me2kgc2t6q-uc.a.run.app"
+> # For local dev:
+> # export VD_BASE_URL="http://localhost:8000"
+> ```
+
+**Authentication:** Bearer token via `Authorization` header.
+
+**Versioning:** All stable endpoints are under `/v1`.
+
+**Quick Links (Prod):**
+
+* Docs (Swagger): `https://visual-descriptor-me2kgc2t6q-uc.a.run.app/docs`
+* Health: `https://visual-descriptor-me2kgc2t6q-uc.a.run.app/healthz`
+* Root (redirects to docs): `https://visual-descriptor-me2kgc2t6q-uc.a.run.app/`
+
+---
 
 ## Endpoints
 
@@ -15,22 +36,27 @@ REST API for fashion image analysis. Returns structured JSON with garment detail
 Analyze a fashion image.
 
 **Request:**
+
 ```bash
-curl -X POST http://localhost:8000/v1/jobs \
+curl -X POST "$VD_BASE_URL/v1/jobs" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -F "file=@image.jpg" \
   -F "passes=A,B,C"
 ```
 
 **Parameters:**
-- `file` (required): Image file (multipart/form-data)
-  - Formats: JPG, PNG, WebP
-  - Max size: 10MB
-- `passes` (optional): Comma-separated analysis passes
-  - Default: "A,B,C"
-  - Options: "A", "B", "C", "A,B", "A,B,C", etc.
+
+* `file` (required): Image file (multipart/form-data)
+
+  * Formats: JPG, PNG, WebP
+  * Max size: 10MB
+* `passes` (optional): Comma-separated analysis passes
+
+  * Default: "A,B,C"
+  * Options: "A", "B", "C", "A,B", "A,B,C", etc.
 
 **Response:** `200 OK`
+
 ```json
 {
   "job_id": "j_abc12345",
@@ -89,6 +115,7 @@ curl -X POST http://localhost:8000/v1/jobs \
 **Error Responses:**
 
 `401 Unauthorized`
+
 ```json
 {
   "detail": "Unauthorized"
@@ -96,6 +123,7 @@ curl -X POST http://localhost:8000/v1/jobs \
 ```
 
 `400 Bad Request`
+
 ```json
 {
   "detail": "Upload a file via multipart/form-data key 'file'"
@@ -103,6 +131,7 @@ curl -X POST http://localhost:8000/v1/jobs \
 ```
 
 `500 Internal Server Error`
+
 ```json
 {
   "detail": "Analysis failed: <error message>"
@@ -114,11 +143,13 @@ curl -X POST http://localhost:8000/v1/jobs \
 Health check endpoint.
 
 **Request:**
+
 ```bash
-curl http://localhost:8000/healthz
+curl "$VD_BASE_URL/healthz"
 ```
 
 **Response:** `200 OK`
+
 ```json
 {
   "status": "ok",
@@ -132,11 +163,13 @@ curl http://localhost:8000/healthz
 Debug configuration endpoint (shows backend status).
 
 **Request:**
+
 ```bash
-curl http://localhost:8000/debug
+curl "$VD_BASE_URL/debug"
 ```
 
 **Response:** `200 OK`
+
 ```json
 {
   "backend": "GeminiVLM",
@@ -151,11 +184,13 @@ curl http://localhost:8000/debug
 
 Interactive API documentation (Swagger UI).
 
-**Access:** Navigate to `http://localhost:8000/docs` in browser
+**Access:** Navigate to `$VD_BASE_URL/docs` in a browser.
 
 ### GET /
 
-Redirect to `/docs`.
+Redirects to `/docs`.
+
+---
 
 ## Data Schema
 
@@ -275,37 +310,44 @@ Redirect to `/docs`.
 }
 ```
 
+---
+
 ## Analysis Passes
 
 Configure via `passes` parameter:
 
 ### Pass A - Global Analysis (Required)
-- Garment type and silhouette
-- Fabric properties
-- Color palette and patterns
-- Overall composition
-- Footwear
 
-**Processing time:** ~1.5-2s
+* Garment type and silhouette
+* Fabric properties
+* Color palette and patterns
+* Overall composition
+* Footwear
+
+**Processing time:** ~1.5–2s
 
 ### Pass B - Construction Details (Optional)
-- Seam types and placement
-- Stitching techniques
-- Closure types
-- Hem finishes
-- Top/bottom separation
+
+* Seam types and placement
+* Stitching techniques
+* Closure types
+* Hem finishes
+* Top/bottom separation
 
 **Processing time:** ~1s
 
 ### Pass C - Presentation Analysis (Optional)
-- Model pose and expression
-- Camera angles and views
-- Lighting setup and mood
-- Background details
 
-**Processing time:** ~0.5-1s
+* Model pose and expression
+* Camera angles and views
+* Lighting setup and mood
+* Background details
+
+**Processing time:** ~0.5–1s
 
 **Recommended:** Use all three passes (`A,B,C`) for complete data.
+
+---
 
 ## Authentication
 
@@ -318,11 +360,13 @@ curl -H "Authorization: Bearer YOUR_API_KEY" ...
 ```
 
 **Set via environment:**
+
 ```bash
 export API_KEY=your_secret_key_here
 ```
 
 **Generating secure keys:**
+
 ```bash
 # Random 32-byte key
 openssl rand -base64 32
@@ -331,16 +375,20 @@ openssl rand -base64 32
 python -c "import uuid; print(uuid.uuid4())"
 ```
 
+---
+
 ## Rate Limiting
 
 **Gemini (free tier):**
-- 15 requests per minute
-- 1,500 requests per day
-- 1M tokens per minute
+
+* 15 requests per minute
+* 1,500 requests per day
+* 1M tokens per minute
 
 **Response on rate limit:** `429 Too Many Requests`
 
 Implement exponential backoff:
+
 ```python
 import time
 from tenacity import retry, wait_exponential, stop_after_attempt
@@ -351,34 +399,42 @@ def call_api(image_path):
     pass
 ```
 
+---
+
 ## Error Handling
 
 **Best practices:**
+
 ```python
 import requests
+import os
 
-def analyze_image(image_path, api_key):
+def analyze_image(image_path, api_key, base_url=None):
+    base_url = base_url or os.getenv("VD_BASE_URL", "https://visual-descriptor-me2kgc2t6q-uc.a.run.app")
     try:
         with open(image_path, 'rb') as f:
             response = requests.post(
-                'http://localhost:8000/v1/jobs',
+                f"{base_url}/v1/jobs",
                 headers={'Authorization': f'Bearer {api_key}'},
                 files={'file': f},
                 data={'passes': 'A,B,C'},
                 timeout=30
             )
-        
         response.raise_for_status()
         return response.json()
-    
     except requests.exceptions.Timeout:
         print("Request timed out")
     except requests.exceptions.HTTPError as e:
         print(f"HTTP error: {e.response.status_code}")
-        print(e.response.json())
+        try:
+            print(e.response.json())
+        except Exception:
+            print(e.response.text)
     except Exception as e:
         print(f"Error: {e}")
 ```
+
+---
 
 ## Examples
 
@@ -386,19 +442,19 @@ def analyze_image(image_path, api_key):
 
 ```python
 import requests
+import os
 from pathlib import Path
 
-def analyze_fashion_image(image_path: str, api_key: str) -> dict:
+def analyze_fashion_image(image_path: str, api_key: str, base_url: str | None = None) -> dict:
     """Analyze a fashion image using Visual Descriptor API."""
-    
-    url = "http://localhost:8000/v1/jobs"
+    base_url = base_url or os.getenv("VD_BASE_URL", "https://visual-descriptor-me2kgc2t6q-uc.a.run.app")
+    url = f"{base_url}/v1/jobs"
     headers = {"Authorization": f"Bearer {api_key}"}
-    
+
     with open(image_path, 'rb') as f:
         files = {'file': f}
         data = {'passes': 'A,B,C'}
         response = requests.post(url, headers=headers, files=files, data=data)
-    
     response.raise_for_status()
     return response.json()
 
@@ -411,13 +467,13 @@ print(result['records'][0]['prompt_text'])
 
 ```bash
 # Basic request
-curl -X POST http://localhost:8000/v1/jobs \
+curl -X POST "$VD_BASE_URL/v1/jobs" \
   -H "Authorization: Bearer your_api_key" \
   -F "file=@image.jpg" \
   -F "passes=A,B,C"
 
 # Save response to file
-curl -X POST http://localhost:8000/v1/jobs \
+curl -X POST "$VD_BASE_URL/v1/jobs" \
   -H "Authorization: Bearer your_api_key" \
   -F "file=@image.jpg" \
   -F "passes=A,B,C" \
@@ -425,47 +481,55 @@ curl -X POST http://localhost:8000/v1/jobs \
 
 # Batch processing
 for img in images/*.jpg; do
-  curl -X POST http://localhost:8000/v1/jobs \
+  curl -X POST "$VD_BASE_URL/v1/jobs" \
     -H "Authorization: Bearer your_api_key" \
     -F "file=@$img" \
     -F "passes=A,B,C" \
-    -o "results/$(basename $img .jpg).json"
+    -o "results/$(basename "$img" .jpg).json"
 done
 ```
 
-### JavaScript/TypeScript
+### JavaScript/TypeScript (Node)
 
 ```typescript
-async function analyzeImage(imagePath: string, apiKey: string) {
+import fs from 'node:fs';
+import fetch from 'node-fetch';
+import FormData from 'form-data';
+
+const BASE_URL = process.env.VD_BASE_URL || 'https://visual-descriptor-me2kgc2t6q-uc.a.run.app';
+
+export async function analyzeImage(imagePath: string, apiKey: string) {
   const formData = new FormData();
   formData.append('file', fs.createReadStream(imagePath));
   formData.append('passes', 'A,B,C');
 
-  const response = await fetch('http://localhost:8000/v1/jobs', {
+  const response = await fetch(`${BASE_URL}/v1/jobs`, {
     method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`
-    },
-    body: formData
+    headers: { 'Authorization': `Bearer ${apiKey}` },
+    body: formData as any
   });
 
   if (!response.ok) {
-    throw new Error(`API error: ${response.statusText}`);
+    const text = await response.text();
+    throw new Error(`API error ${response.status}: ${text}`);
   }
-
   return await response.json();
 }
 ```
 
+---
+
 ## Performance
 
-| Metric | Value |
-|--------|-------|
-| Average latency (Gemini) | 2-4s |
-| Average latency (GPT-4o) | 3-5s |
-| Cold start | 5-10s (Cloud Run) |
-| Recommended timeout | 30s |
-| Max file size | 10MB |
+| Metric                   | Value             |
+| ------------------------ | ----------------- |
+| Average latency (Gemini) | 2–4s              |
+| Average latency (GPT-4o) | 3–5s              |
+| Cold start               | 5–10s (Cloud Run) |
+| Recommended timeout      | 30s               |
+| Max file size            | 10MB              |
+
+---
 
 ## Monitoring
 
@@ -481,13 +545,15 @@ vd_active_requests
 ### Logging
 
 All requests logged with:
-- Timestamp
-- Request ID
-- Model used
-- Processing time
-- Status code
+
+* Timestamp
+* Request ID
+* Model used
+* Processing time
+* Status code
 
 **View logs (Cloud Run):**
+
 ```bash
 gcloud run services logs read visual-descriptor \
   --region=us-central1 \
@@ -496,4 +562,14 @@ gcloud run services logs read visual-descriptor \
 
 ---
 
-**Questions?** artofesosa@gmail.com
+## CORS (if calling from browsers)
+
+If you plan to call the API directly from web apps, enable CORS in your service:
+
+* Allowed origins: your domains (e.g., `https://yourapp.com`)
+* Allowed methods: `POST, GET, OPTIONS`
+* Allowed headers: `Authorization, Content-Type`
+
+---
+
+**Questions?** [artofesosa@gmail.com](mailto:artofesosa@gmail.com)
