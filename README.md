@@ -79,7 +79,28 @@ make test
 
 ## API Usage
 
-### Start Server
+### Try the Live Demo API
+
+**Production endpoint:** `https://visual-descriptor-516904417440.us-central1.run.app`
+
+```bash
+# Check if service is live
+curl https://visual-descriptor-516904417440.us-central1.run.app/healthz
+
+# Analyze an image (requires API key)
+curl -X POST https://visual-descriptor-516904417440.us-central1.run.app/v1/jobs \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -F "file=@image.jpg" \
+  -F "passes=A,B,C"
+```
+
+⚠️ **Important Notes:**
+- This is a demo endpoint - authentication required
+- Free tier rate limits apply (15 requests/min via Gemini)
+- For production use, deploy your own instance (see [Deployment](#deployment) section)
+- Contact artofesosa@gmail.com for demo API access
+
+### Run Locally
 
 ```bash
 export VD_MODEL=gemini
@@ -88,7 +109,7 @@ export API_KEY=dev_key_123
 uvicorn api.app:app --port 8000
 ```
 
-### Analyze Image
+### Local Example
 
 ```bash
 curl -X POST http://localhost:8000/v1/jobs \
