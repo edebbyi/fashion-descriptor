@@ -285,8 +285,9 @@ gcloud run services logs read visual-descriptor \
 ```
 
 ## API Reference
-Live API: https://visual-descriptor-516904417440.us-central1.run.app
-Interactive Docs: https://visual-descriptor-516904417440.us-central1.run.app/docs
+**Live API:** `https://visual-descriptor-516904417440.us-central1.run.app`
+
+**Interactive Docs:** [https://visual-descriptor-516904417440.us-central1.run.app/docs](https://visual-descriptor-516904417440.us-central1.run.app/docs)
 
 See [docs/api.md](docs/api.md) for:
 - Cloud Run base URL
