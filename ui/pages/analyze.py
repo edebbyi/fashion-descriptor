@@ -7,6 +7,13 @@ import base64
 import sys
 import os
 
+import sys
+print("DEBUG: sys.path =", sys.path)
+print("DEBUG: Current file =", __file__)
+
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+print("DEBUG: Added to path =", str(Path(__file__).parent.parent.parent))
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
