@@ -7,13 +7,12 @@ import base64
 import sys
 import os
 
-import sys
-print("DEBUG: sys.path =", sys.path)
-print("DEBUG: Current file =", __file__)
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from shared_init import init_session_state
 
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-print("DEBUG: Added to path =", str(Path(__file__).parent.parent.parent))
+# Initialize session state
+init_session_state()
+
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 

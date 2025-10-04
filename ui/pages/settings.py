@@ -1,5 +1,13 @@
 import streamlit as st
 import os
+from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from shared_init import init_session_state
+
+# Initialize session state
+init_session_state()
 
 st.title("⚙️ Settings")
 st.markdown("*Configure your Visual Descriptor AI preferences*")

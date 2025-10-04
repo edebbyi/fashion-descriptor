@@ -1,4 +1,12 @@
 import streamlit as st
+from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from shared_init import init_session_state
+
+# Initialize session state
+init_session_state()
 
 st.title("🏠 Welcome to Visual Descriptor AI")
 st.markdown("*AI-powered fashion image analysis for creative directors*")
