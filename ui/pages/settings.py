@@ -276,4 +276,4 @@ if st.button("🔄 Reset All Settings to Defaults", type="secondary", use_contai
     st.success("✅ Settings reset to defaults!")
     st.rerun()
 
-st.caption("Made with ❤️ for fashion tech innovators")
+st.caption("Made with ❤️ by Deborah Imafidon")

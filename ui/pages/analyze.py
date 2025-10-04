@@ -1,3 +1,7 @@
+# ui/pages/analyze.py
+# CRITICAL: Import order matters! Follow this exactly:
+
+# Step 1: Standard imports (no src imports yet!)
 import streamlit as st
 from pathlib import Path
 import time
@@ -5,29 +9,18 @@ from PIL import Image
 import io
 import base64
 import sys
-import os
 
+# Step 2: Add path and import shared_init (this adds repo root to sys.path)
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from shared_init import init_session_state
+from shared_init import init_session_state, set_api_keys
 
-# Initialize session state
+# Step 3: Initialize session state
 init_session_state()
 
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
+# Step 4: NOW it's safe to import from src (path is set by shared_init)
 from src.visual_descriptor.engine import Engine
 
 # ==================== HELPER FUNCTIONS ====================
-def set_api_keys():
-    """Set API keys as environment variables"""
-    if st.session_state.gemini_api_key:
-        os.environ["GEMINI_API_KEY"] = st.session_state.gemini_api_key
-        os.environ["GOOGLE_API_KEY"] = st.session_state.gemini_api_key
-    
-    if st.session_state.openai_api_key:
-        os.environ["OPENAI_API_KEY"] = st.session_state.openai_api_key
-
 def init_engine(model: str = "gemini"):
     """Initialize or get existing engine"""
     set_api_keys()
