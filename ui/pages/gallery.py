@@ -3,7 +3,12 @@ import pandas as pd
 from pathlib import Path
 import sys
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Fix path setup
+current_file = Path(__file__).resolve()
+repo_root = current_file.parent.parent.parent
+sys.path.insert(0, str(repo_root))
+sys.path.insert(0, str(repo_root / "ui"))
+
 from shared_init import init_session_state
 
 # Initialize session state
@@ -19,7 +24,7 @@ has_collection = len(st.session_state.collection) > 0
 
 # Show workflow hint if they have analyzed but not saved
 if has_analyzed and not has_collection:
-    st.info("💡 **Tip**: If you have not saved your analyzed images yet. Go to the **analyze** page and click '💾 Save to Gallery' to keep them permanently!")
+    st.info("💡 **Tip**: You have not saved your analyzed images yet. Go to the **analyze** page and click '💾 Save to Gallery' to keep them permanently!")
 
 # View selector
 view_option = st.radio(

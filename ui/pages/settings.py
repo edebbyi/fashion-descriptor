@@ -3,7 +3,12 @@ import os
 from pathlib import Path
 import sys
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Fix path setup
+current_file = Path(__file__).resolve()
+repo_root = current_file.parent.parent.parent
+sys.path.insert(0, str(repo_root))
+sys.path.insert(0, str(repo_root / "ui"))
+
 from shared_init import init_session_state
 
 # Initialize session state
@@ -90,34 +95,36 @@ with col1:
         help="This will be the default model for analysis"
     )
     
-    if "default_model" not in st.session_state:
+    if default_model != st.session_state.default_model:
         st.session_state.default_model = default_model
     
     st.markdown("### Vocabulary Normalization")
     normalize = st.checkbox(
         "Normalize fabric types, colors, and terms",
-        value=True,
+        value=st.session_state.normalize_vocab,
         help="Standardize terminology for consistency"
     )
     
-    if "normalize_vocab" not in st.session_state:
+    if normalize != st.session_state.normalize_vocab:
         st.session_state.normalize_vocab = normalize
 
 with col2:
     st.markdown("### Default Analysis Passes")
     
-    default_pass_a = st.checkbox("Pass A - Global Analysis", value=True)
-    default_pass_b = st.checkbox("Pass B - Construction", value=True)
-    default_pass_c = st.checkbox("Pass C - Photography", value=True)
+    current_passes = st.session_state.default_passes
+    default_pass_a = st.checkbox("Pass A - Global Analysis", value="A" in current_passes)
+    default_pass_b = st.checkbox("Pass B - Construction", value="B" in current_passes)
+    default_pass_c = st.checkbox("Pass C - Photography", value="C" in current_passes)
     
-    if "default_passes" not in st.session_state:
-        passes = []
-        if default_pass_a: passes.append("A")
-        if default_pass_b: passes.append("B")
-        if default_pass_c: passes.append("C")
+    passes = []
+    if default_pass_a: passes.append("A")
+    if default_pass_b: passes.append("B")
+    if default_pass_c: passes.append("C")
+    
+    if passes != st.session_state.default_passes:
         st.session_state.default_passes = passes
     
-    st.info(f"**{len(st.session_state.get('default_passes', []))} passes** will run by default")
+    st.info(f"**{len(passes)} passes** will run by default")
 
 st.markdown("---")
 
@@ -130,20 +137,21 @@ with col1:
     export_format = st.radio(
         "Default Export Format",
         ["JSON", "CSV", "Prompt Text"],
-        horizontal=True
+        horizontal=True,
+        index=["JSON", "CSV", "Prompt Text"].index(st.session_state.default_export)
     )
     
-    if "default_export" not in st.session_state:
+    if export_format != st.session_state.default_export:
         st.session_state.default_export = export_format
 
 with col2:
     include_confidence = st.checkbox(
         "Include Confidence Scores",
-        value=False,
+        value=st.session_state.include_confidence,
         help="Add confidence scores to exports (if available)"
     )
     
-    if "include_confidence" not in st.session_state:
+    if include_confidence != st.session_state.include_confidence:
         st.session_state.include_confidence = include_confidence
 
 st.markdown("---")
@@ -212,8 +220,8 @@ with st.expander("Environment Info"):
     st.code(f"""
 Python: 3.11+
 Streamlit: {st.__version__}
-Model: {st.session_state.get('default_model', 'gemini')}
-Normalize: {st.session_state.get('normalize_vocab', True)}
+Model: {st.session_state.default_model}
+Normalize: {st.session_state.normalize_vocab}
     """)
     
     st.markdown("**Environment Variables:**")
@@ -266,12 +274,12 @@ st.markdown("---")
 
 # Reset button
 if st.button("🔄 Reset All Settings to Defaults", type="secondary", use_container_width=True):
-    # Clear session state settings
-    keys_to_clear = ["default_model", "normalize_vocab", "default_passes", 
-                    "default_export", "include_confidence"]
-    for key in keys_to_clear:
-        if key in st.session_state:
-            del st.session_state[key]
+    # Reset to defaults
+    st.session_state.default_model = "gemini"
+    st.session_state.normalize_vocab = True
+    st.session_state.default_passes = ["A", "B", "C"]
+    st.session_state.default_export = "JSON"
+    st.session_state.include_confidence = False
     
     st.success("✅ Settings reset to defaults!")
     st.rerun()

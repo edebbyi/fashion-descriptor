@@ -1,7 +1,4 @@
 # ui/pages/analyze.py
-# CRITICAL: Import order matters! Follow this exactly:
-
-# Step 1: Standard imports (no src imports yet!)
 import streamlit as st
 from pathlib import Path
 import time
@@ -9,16 +6,32 @@ from PIL import Image
 import io
 import base64
 import sys
+import os
 
-# Step 2: Add path and import shared_init (this adds repo root to sys.path)
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Fix path setup - add repo root to Python path
+current_file = Path(__file__).resolve()
+repo_root = current_file.parent.parent.parent  # ui/pages/analyze.py -> ui/pages/ -> ui/ -> repo_root/
+sys.path.insert(0, str(repo_root))
+
+# Now we can import from ui and src
+sys.path.insert(0, str(repo_root / "ui"))
+
+# Import shared functions
 from shared_init import init_session_state, set_api_keys
 
-# Step 3: Initialize session state
+# Initialize session state
 init_session_state()
 
-# Step 4: NOW it's safe to import from src (path is set by shared_init)
+# Import engine (this is now safe because repo_root is in path)
 from src.visual_descriptor.engine import Engine
+
+# Initialize feedback message state
+if "feedback_message" not in st.session_state:
+    st.session_state.feedback_message = None
+if "feedback_type" not in st.session_state:
+    st.session_state.feedback_type = None
+if "file_uploader_key" not in st.session_state:
+    st.session_state.file_uploader_key = 0
 
 # ==================== HELPER FUNCTIONS ====================
 def init_engine(model: str = "gemini"):
@@ -61,9 +74,34 @@ def create_badge(text: str, badge_type: str = "primary") -> str:
     """Create a styled badge"""
     return f'<span class="badge badge-{badge_type}">{text}</span>'
 
+def set_feedback(message: str, feedback_type: str = "success"):
+    """Set a feedback message to display after rerun"""
+    st.session_state.feedback_message = message
+    st.session_state.feedback_type = feedback_type
+
+def show_feedback():
+    """Display and clear any pending feedback message"""
+    if st.session_state.feedback_message:
+        if st.session_state.feedback_type == "success":
+            st.success(st.session_state.feedback_message)
+        elif st.session_state.feedback_type == "info":
+            st.info(st.session_state.feedback_message)
+        elif st.session_state.feedback_type == "warning":
+            st.warning(st.session_state.feedback_message)
+        elif st.session_state.feedback_type == "error":
+            st.error(st.session_state.feedback_message)
+        
+        # Clear the message after displaying
+        st.session_state.feedback_message = None
+        st.session_state.feedback_type = None
+
 # ==================== MAIN PAGE ====================
 st.title("🔍 Analyze Images")
 st.markdown("*Upload fashion images for AI-powered analysis*")
+
+# Show any pending feedback messages
+show_feedback()
+
 st.markdown("---")
 
 # Settings section
@@ -103,7 +141,8 @@ uploaded_files = st.file_uploader(
     "📤 Upload Fashion Images",
     type=["jpg", "jpeg", "png", "webp"],
     accept_multiple_files=True,
-    help="Upload one or more fashion images for analysis"
+    help="Upload one or more fashion images for analysis",
+    key=f"uploader_{st.session_state.file_uploader_key}"
 )
 
 # Analyze button
@@ -145,13 +184,17 @@ with col2:
             # Clear analyzed images after saving
             st.session_state.analyzed_images = []
             
-            # Show appropriate message
+            # Increment uploader key to clear the file uploader widget
+            st.session_state.file_uploader_key += 1
+            
+            # Set feedback message to show after rerun
             if added > 0 and skipped > 0:
-                st.success(f"✅ Saved {added} new image(s), skipped {skipped} duplicate(s)")
+                set_feedback(f"✅ Saved {added} new image(s), skipped {skipped} duplicate(s)")
             elif added > 0:
-                st.success(f"✅ Saved {added} image(s) to gallery!")
+                set_feedback(f"✅ Saved {added} image(s) to gallery!")
+                st.balloons()
             else:
-                st.info(f"ℹ️ All {skipped} image(s) already in gallery")
+                set_feedback(f"ℹ️ All {skipped} image(s) already in gallery", "info")
             
             st.rerun()
 
@@ -188,8 +231,12 @@ if analyze_btn and uploaded_files:
         status_text.empty()
         progress_bar.empty()
         
-        st.success(f"✅ Successfully analyzed {len(st.session_state.analyzed_images)} image(s)!")
-        st.balloons()
+        # Set success message and trigger rerun to show the Save button
+        if st.session_state.analyzed_images:
+            set_feedback(f"✅ Successfully analyzed {len(st.session_state.analyzed_images)} image(s)!")
+            st.balloons()
+            time.sleep(1.5)  # Give time to see balloons
+            st.rerun()
 
 # Display results
 if st.session_state.analyzed_images:

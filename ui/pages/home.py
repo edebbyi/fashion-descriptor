@@ -2,7 +2,12 @@ import streamlit as st
 from pathlib import Path
 import sys
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Fix path setup
+current_file = Path(__file__).resolve()
+repo_root = current_file.parent.parent.parent
+sys.path.insert(0, str(repo_root))
+sys.path.insert(0, str(repo_root / "ui"))
+
 from shared_init import init_session_state
 
 # Initialize session state

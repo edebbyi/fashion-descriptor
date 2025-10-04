@@ -8,8 +8,9 @@ import os
 import sys
 from pathlib import Path
 
-# Add src to path (works from any page depth)
-repo_root = Path(__file__).parent.parent
+# Add repo root to path (works from any page depth)
+# This file is at ui/shared_init.py, so parent is repo root
+repo_root = Path(__file__).parent.parent.resolve()
 if str(repo_root) not in sys.path:
     sys.path.insert(0, str(repo_root))
 
@@ -32,6 +33,22 @@ def init_session_state():
     
     if "engine" not in st.session_state:
         st.session_state.engine = None
+    
+    # Settings
+    if "default_model" not in st.session_state:
+        st.session_state.default_model = "gemini"
+    
+    if "normalize_vocab" not in st.session_state:
+        st.session_state.normalize_vocab = True
+    
+    if "default_passes" not in st.session_state:
+        st.session_state.default_passes = ["A", "B", "C"]
+    
+    if "default_export" not in st.session_state:
+        st.session_state.default_export = "JSON"
+    
+    if "include_confidence" not in st.session_state:
+        st.session_state.include_confidence = False
 
 def set_api_keys():
     """Set API keys as environment variables."""
@@ -42,5 +59,5 @@ def set_api_keys():
     if st.session_state.openai_api_key:
         os.environ["OPENAI_API_KEY"] = st.session_state.openai_api_key
 
-# Always initialize when this module is imported
+# Auto-initialize when module is imported
 init_session_state()
