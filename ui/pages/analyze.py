@@ -8,22 +8,30 @@ import base64
 import sys
 import os
 
-# Fix path setup - add repo root to Python path
-current_file = Path(__file__).resolve()
-repo_root = current_file.parent.parent.parent  # ui/pages/analyze.py -> ui/pages/ -> ui/ -> repo_root/
-sys.path.insert(0, str(repo_root))
+# SIMPLIFIED PATH SETUP - Use shared_init FIRST
+# Add parent directories to path if not already there
+current_dir = Path(__file__).resolve().parent
+ui_dir = current_dir.parent
+repo_root = ui_dir.parent
 
-# Now we can import from ui and src
-sys.path.insert(0, str(repo_root / "ui"))
+for path in [repo_root, ui_dir]:
+    path_str = str(path)
+    if path_str not in sys.path:
+        sys.path.insert(0, path_str)
 
-# Import shared functions
+# NOW import shared_init (which will also ensure paths are set)
 from shared_init import init_session_state, set_api_keys
 
 # Initialize session state
 init_session_state()
 
-# Import engine (this is now safe because repo_root is in path)
-from src.visual_descriptor.engine import Engine
+# Import engine AFTER paths are fully configured
+try:
+    from src.visual_descriptor.engine import Engine
+except ImportError as e:
+    st.error(f"⚠️ Failed to import Engine: {e}")
+    st.info("Check that all dependencies are installed: pip install -r requirements.txt")
+    st.stop()
 
 # Initialize feedback message state
 if "feedback_message" not in st.session_state:

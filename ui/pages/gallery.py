@@ -1,13 +1,18 @@
+# ui/pages/gallery.py
 import streamlit as st
 import pandas as pd
 from pathlib import Path
 import sys
 
-# Fix path setup
-current_file = Path(__file__).resolve()
-repo_root = current_file.parent.parent.parent
-sys.path.insert(0, str(repo_root))
-sys.path.insert(0, str(repo_root / "ui"))
+# Path setup
+current_dir = Path(__file__).resolve().parent
+ui_dir = current_dir.parent
+repo_root = ui_dir.parent
+
+for path in [repo_root, ui_dir]:
+    path_str = str(path)
+    if path_str not in sys.path:
+        sys.path.insert(0, path_str)
 
 from shared_init import init_session_state
 
