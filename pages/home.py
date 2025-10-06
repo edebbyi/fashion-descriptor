@@ -13,7 +13,7 @@ from shared_init import init_session_state
 # Initialize session state
 init_session_state()
 
-st.title("🏠 Welcome to Visual Descriptor AI")
+st.title("🏠 Welcome to Fashion Descriptor AI")
 st.markdown("*AI-powered fashion image analysis for creative directors*")
 st.markdown("---")
 
@@ -229,6 +229,6 @@ st.markdown("---")
 
 # Footer
 st.caption("""
-**Visual Descriptor AI** - Powered by Gemini Flash 2.5 & GPT-4o  
+**Fashion Descriptor AI** - Powered by Gemini Flash 2.5 & GPT-4o  
 Built for fashion tech innovators 👗✨
 """)

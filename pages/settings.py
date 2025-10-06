@@ -15,7 +15,7 @@ from shared_init import init_session_state
 init_session_state()
 
 st.title("⚙️ Settings")
-st.markdown("*Configure your Visual Descriptor AI preferences*")
+st.markdown("*Configure your Fashion Descriptor AI preferences*")
 st.markdown("---")
 
 # API Configuration
@@ -239,7 +239,7 @@ col1, col2 = st.columns(2)
 
 with col1:
     st.markdown("""
-    **Visual Descriptor AI**  
+    **Fashion Descriptor AI**  
     Version 2.0.0
     
     AI-powered fashion image analysis using state-of-the-art 

@@ -17,7 +17,7 @@ logging.getLogger("uvicorn").info(f"[vd] API_KEY (expected) = {API_KEY!r}")
 logging.getLogger("uvicorn").info(f"[vd] VD_MODEL = {VD_MODEL}")
 
 app = FastAPI(
-    title="Visual Descriptor API",
+    title="Fashion Descriptor API",
     version="2.0.0",
     description=f"Fashion image analysis powered by {VD_MODEL.upper()}",
     swagger_ui_parameters={"persistAuthorization": True},

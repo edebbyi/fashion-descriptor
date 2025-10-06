@@ -13,7 +13,7 @@ if str(repo_root) not in sys.path:
 
 # ==================== PAGE CONFIG ====================
 st.set_page_config(
-    page_title="Visual Descriptor AI",
+    page_title="Fashion Descriptor AI",
     page_icon="👗",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -91,7 +91,7 @@ def set_api_keys():
 
 # ==================== SIDEBAR (SHARED ACROSS ALL PAGES) ====================
 with st.sidebar:
-    st.markdown("# 👗 Visual Descriptor")
+    st.markdown("# 👗 Fashion Descriptor")
     st.markdown("*Fashion Intelligence AI*")
     st.markdown("---")
     
@@ -164,7 +164,7 @@ with st.sidebar:
         st.rerun()
 
 # ==================== MAIN CONTENT ====================
-st.title("🎨 Visual Descriptor AI")
+st.title("🎨 Fashion Descriptor AI")
 st.markdown("*AI-powered fashion image analysis for creative directors*")
 st.markdown("---")
 
