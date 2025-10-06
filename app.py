@@ -79,11 +79,15 @@ if "engine" not in st.session_state:
 def set_api_keys():
     """Set API keys as environment variables"""
     if st.session_state.gemini_api_key:
-        os.environ["GEMINI_API_KEY"] = st.session_state.gemini_api_key
-        os.environ["GOOGLE_API_KEY"] = st.session_state.gemini_api_key
+        # CRITICAL FIX: Strip whitespace to avoid "illegal header value" errors
+        clean_key = st.session_state.gemini_api_key.strip()
+        os.environ["GEMINI_API_KEY"] = clean_key
+        os.environ["GOOGLE_API_KEY"] = clean_key
     
     if st.session_state.openai_api_key:
-        os.environ["OPENAI_API_KEY"] = st.session_state.openai_api_key
+        # CRITICAL FIX: Strip whitespace to avoid API errors
+        clean_key = st.session_state.openai_api_key.strip()
+        os.environ["OPENAI_API_KEY"] = clean_key
 
 # ==================== SIDEBAR (SHARED ACROSS ALL PAGES) ====================
 with st.sidebar:
@@ -104,8 +108,9 @@ with st.sidebar:
             key="gemini_key_input",
             label_visibility="collapsed"
         )
+        # CRITICAL FIX: Strip whitespace when updating to avoid gRPC header errors
         if gemini_key != st.session_state.gemini_api_key:
-            st.session_state.gemini_api_key = gemini_key
+            st.session_state.gemini_api_key = gemini_key.strip()
             st.session_state.engine = None
             set_api_keys()
         
@@ -118,8 +123,9 @@ with st.sidebar:
             key="openai_key_input",
             label_visibility="collapsed"
         )
+        # CRITICAL FIX: Strip whitespace when updating
         if openai_key != st.session_state.openai_api_key:
-            st.session_state.openai_api_key = openai_key
+            st.session_state.openai_api_key = openai_key.strip()
             st.session_state.engine = None
             set_api_keys()
         

@@ -54,11 +54,15 @@ def init_session_state():
 def set_api_keys():
     """Set API keys as environment variables."""
     if st.session_state.gemini_api_key:
-        os.environ["GEMINI_API_KEY"] = st.session_state.gemini_api_key
-        os.environ["GOOGLE_API_KEY"] = st.session_state.gemini_api_key
+        # CRITICAL FIX: Strip whitespace to avoid "illegal header value" errors with gRPC
+        clean_key = st.session_state.gemini_api_key.strip()
+        os.environ["GEMINI_API_KEY"] = clean_key
+        os.environ["GOOGLE_API_KEY"] = clean_key
     
     if st.session_state.openai_api_key:
-        os.environ["OPENAI_API_KEY"] = st.session_state.openai_api_key
+        # CRITICAL FIX: Strip whitespace to avoid API errors
+        clean_key = st.session_state.openai_api_key.strip()
+        os.environ["OPENAI_API_KEY"] = clean_key
 
 # Auto-initialize when module is imported
 init_session_state()
