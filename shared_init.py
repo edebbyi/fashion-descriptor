@@ -1,4 +1,4 @@
-# ui/shared_init.py
+# shared_init.py
 """
 Shared initialization for all Streamlit pages.
 Import this at the top of every page file.
@@ -8,21 +8,12 @@ import os
 import sys
 from pathlib import Path
 
-# Robust path setup that works in all environments
-try:
-    # This file is at ui/shared_init.py
-    current_file = Path(__file__).resolve()
-    ui_dir = current_file.parent
-    repo_root = ui_dir.parent
-    
-    # Add both to path if not already present
-    for path in [repo_root, ui_dir]:
-        path_str = str(path)
-        if path_str not in sys.path:
-            sys.path.insert(0, path_str)
-            
-except Exception as e:
-    st.error(f"Path setup error: {e}")
+# This file is now at repo root (moved from ui/)
+repo_root = Path(__file__).parent.resolve()
+
+# Add repo root to path if not already present
+if str(repo_root) not in sys.path:
+    sys.path.insert(0, str(repo_root))
 
 def init_session_state():
     """Initialize all session state variables if they don't exist."""

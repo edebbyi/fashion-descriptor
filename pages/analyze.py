@@ -8,16 +8,10 @@ import base64
 import sys
 import os
 
-# SIMPLIFIED PATH SETUP - Use shared_init FIRST
-# Add parent directories to path if not already there
-current_dir = Path(__file__).resolve().parent
-ui_dir = current_dir.parent
-repo_root = ui_dir.parent
-
-for path in [repo_root, ui_dir]:
-    path_str = str(path)
-    if path_str not in sys.path:
-        sys.path.insert(0, path_str)
+#root/pages/analyze.py
+repo_root = Path(__file__).parent.parent.resolve()
+if str(repo_root) not in sys.path:
+    sys.path.insert(0, str(repo_root))
 
 # NOW import shared_init (which will also ensure paths are set)
 from shared_init import init_session_state, set_api_keys

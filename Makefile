@@ -10,7 +10,7 @@ ui:
 	@echo "🚀 Starting Visual Descriptor AI Interface..."
 	@echo "📍 URL: http://localhost:8501"
 	@echo ""
-	streamlit run ui/app.py
+	streamlit run app.py
 
 test:
 	pytest -q
