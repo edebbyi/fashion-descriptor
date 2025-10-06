@@ -215,6 +215,9 @@ Return STRICT JSON:
 
 Return ONLY the JSON object."""
 
+# ───────────────────────────────────────────────────────────
+# Gemini VLM Captioner Class
+# ───────────────────────────────────────────────────────────
 
 class GeminiVLM:
     """
@@ -234,7 +237,7 @@ class GeminiVLM:
         
         genai.configure(api_key=api_key)
         
-        # Use Gemini 2.0 Flash (experimental) - best vision model as of Jan 2025
+        # Use Gemini 2.0 Flash (experimental)
         self.model = genai.GenerativeModel(
             model_name=model_name,
             generation_config={

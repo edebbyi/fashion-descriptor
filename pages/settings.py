@@ -329,7 +329,7 @@ with col1:
     computer vision models.
     
     **Key Features:**
-    - 50+ structured data fields
+    - 30+ structured data fields 
     - Multi-pass analysis system
     - Color & pattern detection
     - Construction analysis
