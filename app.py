@@ -4,7 +4,12 @@ import sys
 from pathlib import Path
 
 # Add src to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+#sys.path.insert(0, str(Path(__file__).parent))
+
+# Add repo root to path for src imports
+repo_root = Path(__file__).parent.resolve()
+if str(repo_root) not in sys.path:
+    sys.path.insert(0, str(repo_root))
 
 # ==================== PAGE CONFIG ====================
 st.set_page_config(
@@ -13,7 +18,6 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
-
 # ==================== GLOBAL CSS ====================
 st.markdown("""
 <style>
