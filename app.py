@@ -218,7 +218,7 @@ Select a page from the sidebar to get started:
 
 ### Quick Start
 
-1. **Add API Key**: Click "Configure API Keys" in the sidebar
+1. **Add API Key**: Click "App >> Configure API Keys" in the sidebar
 2. **Validate Key**: Click the validate button to verify your key works
 3. **Analyze Images**: Go to the analyze page
 4. **View Results**: Check gallery for comparisons
