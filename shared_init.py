@@ -1,7 +1,6 @@
 # shared_init.py
 """
 Shared initialization for all Streamlit pages.
-Import this at the top of every page file.
 """
 import streamlit as st
 import os
@@ -24,6 +23,13 @@ def init_session_state():
     
     if "openai_api_key" not in st.session_state:
         st.session_state.openai_api_key = os.getenv("OPENAI_API_KEY", "")
+    
+    # API Key validation status
+    if "gemini_key_valid" not in st.session_state:
+        st.session_state.gemini_key_valid = None  # None = not tested, True/False = result
+    
+    if "openai_key_valid" not in st.session_state:
+        st.session_state.openai_key_valid = None
     
     # Analysis data
     if "analyzed_images" not in st.session_state:
@@ -63,6 +69,61 @@ def set_api_keys():
         # CRITICAL FIX: Strip whitespace to avoid API errors
         clean_key = st.session_state.openai_api_key.strip()
         os.environ["OPENAI_API_KEY"] = clean_key
+
+def validate_api_key(key_type: str, api_key: str) -> tuple[bool, str]:
+    """
+    Validate an API key by attempting a minimal API call.
+    
+    Args:
+        key_type: "gemini" or "openai"
+        api_key: The API key to validate
+    
+    Returns:
+        (is_valid, error_message)
+    """
+    if not api_key or not api_key.strip():
+        return False, "API key is empty"
+    
+    api_key = api_key.strip()
+    
+    if key_type == "gemini":
+        try:
+            import google.generativeai as genai
+            genai.configure(api_key=api_key)
+            # Try to list models as a lightweight validation
+            models = genai.list_models()
+            list(models)  # Force evaluation
+            return True, "✅ Gemini API key is valid"
+        except Exception as e:
+            error_msg = str(e)
+            if "API_KEY_INVALID" in error_msg or "invalid" in error_msg.lower():
+                return False, "❌ Gemini API key is invalid"
+            elif "quota" in error_msg.lower():
+                return False, "API key valid but quota exceeded"
+            else:
+                return False, f"Validation failed: {error_msg[:100]}"
+    
+    elif key_type == "openai":
+        try:
+            from openai import OpenAI
+            client = OpenAI(api_key=api_key)
+            # Try to list models as a lightweight validation
+            client.models.list()
+            return True, "✅ OpenAI API key is valid"
+        except Exception as e:
+            error_msg = str(e)
+            if "Incorrect API key" in error_msg or "invalid" in error_msg.lower():
+                return False, "❌ OpenAI API key is invalid"
+            elif "quota" in error_msg.lower() or "insufficient" in error_msg.lower():
+                return False, "API key valid but quota exceeded"
+            else:
+                return False, f"Validation failed: {error_msg[:100]}"
+    
+    return False, "Unknown key type"
+
+def has_valid_api_key() -> bool:
+    """Check if user has at least one valid API key."""
+    return (st.session_state.gemini_key_valid == True) or (st.session_state.openai_key_valid == True)
 
 # Auto-initialize when module is imported
 init_session_state()

@@ -9,7 +9,6 @@ import sys
 import os
 
 # ==================== CRITICAL PATH SETUP ====================
-# This MUST happen before any imports from src/
 current_file = Path(__file__).resolve()
 pages_dir = current_file.parent  # pages/
 repo_root = pages_dir.parent     # repo root
@@ -27,10 +26,9 @@ if not src_path.exists():
 
 # ==================== NOW SAFE TO IMPORT ====================
 try:
-    from shared_init import init_session_state, set_api_keys
+    from shared_init import init_session_state, set_api_keys, has_valid_api_key
 except ImportError as e:
     st.error(f"⚠️ Failed to import shared_init: {e}")
-    st.code(f"sys.path = {sys.path}")
     st.stop()
 
 # Initialize session state
@@ -41,54 +39,12 @@ try:
     from src.visual_descriptor.engine import Engine
 except ModuleNotFoundError as e:
     st.error(f"⚠️ Module not found: {e}")
-    st.markdown("""
-    ### Debugging Information:
-    
-    **Error:** Cannot find a required module.
-    
-    **Possible causes:**
-    1. Missing `__init__.py` files
-    2. Dependencies not installed
-    3. Python path not set correctly
-    """)
-    
-    with st.expander("🔍 Debug Info"):
-        st.markdown("**Python Path:**")
-        for p in sys.path:
-            st.code(p)
-        
-        st.markdown("**Current Directory:**")
-        st.code(str(Path.cwd()))
-        
-        st.markdown("**Repo Root:**")
-        st.code(str(repo_root))
-        
-        st.markdown("**src/ exists:**")
-        st.code(str((repo_root / "src").exists()))
-        
-        st.markdown("**src/__init__.py exists:**")
-        st.code(str((repo_root / "src" / "__init__.py").exists()))
-    
     st.stop()
 except ImportError as e:
     st.error(f"⚠️ Import error: {e}")
-    st.markdown("""
-    ### This usually means a dependency is missing.
-    
-    **Check:**
-    - Is `pydantic` in requirements.txt?
-    - Did the dependencies install correctly?
-    """)
-    
-    with st.expander("🔍 Full Error"):
-        import traceback
-        st.code(traceback.format_exc())
-    
     st.stop()
 except Exception as e:
     st.error(f"⚠️ Unexpected error: {e}")
-    import traceback
-    st.code(traceback.format_exc())
     st.stop()
 
 # Initialize feedback message state
@@ -168,24 +124,54 @@ st.markdown("*Upload fashion images for AI-powered analysis*")
 # Show any pending feedback messages
 show_feedback()
 
+# CRITICAL: Check for valid API key before allowing any analysis
+if not has_valid_api_key():
+    st.error("""
+    🚫 **Cannot analyze images without a valid API key**
+    
+    Please configure and validate your API key first:
+    
+    1. Go to the sidebar and click **"Configure API Keys"**
+    2. Enter your **Gemini** or **OpenAI** API key
+    3. Click the **"Validate"** button to verify it works
+    4. Once validated, return here to analyze images
+    
+    Need an API key?
+    - Gemini (free): [Get key from Google AI Studio](https://aistudio.google.com/app/apikey)
+    - OpenAI (paid): [Get key from OpenAI Platform](https://platform.openai.com/api-keys)
+    """)
+    st.stop()
+
 st.markdown("---")
 
 # Settings section
 col1, col2, col3 = st.columns(3)
 
 with col1:
+    # Determine which models are available based on validated keys
+    available_models = ["stub"]  # stub always available for testing
+    if st.session_state.gemini_key_valid == True:
+        available_models.insert(0, "gemini")
+    if st.session_state.openai_key_valid == True:
+        available_models.insert(0 if "gemini" not in available_models else 1, "openai")
+    
+    # Default to first available model
+    default_index = 0
+    if "gemini" in available_models:
+        default_index = available_models.index("gemini")
+    
     model_choice = st.selectbox(
         "AI Model",
-        ["gemini", "openai", "stub"],
-        index=0,
-        help="Gemini Flash 2.5 (recommended) or OpenAI GPT-4o"
+        available_models,
+        index=default_index,
+        help="Select AI model (only validated keys shown)"
     )
     
-    # Check if API key is available
-    if model_choice == "gemini" and not st.session_state.gemini_api_key:
-        st.error("⚠️ Gemini API key required!")
-    elif model_choice == "openai" and not st.session_state.openai_api_key:
-        st.error("⚠️ OpenAI API key required!")
+    # Show warning if trying to use model without valid key
+    if model_choice == "gemini" and st.session_state.gemini_key_valid != True:
+        st.error("⚠️ Gemini API key not validated!")
+    elif model_choice == "openai" and st.session_state.openai_key_valid != True:
+        st.error("⚠️ OpenAI API key not validated!")
 
 with col2:
     pass_a = st.checkbox("Pass A - Global", value=True, help="Garment type, fabric, colors")
@@ -211,10 +197,10 @@ uploaded_files = st.file_uploader(
     key=f"uploader_{st.session_state.file_uploader_key}"
 )
 
-# Analyze button
+# Analyze button - only enabled with valid API key
 can_analyze = uploaded_files and (
-    (model_choice == "gemini" and st.session_state.gemini_api_key) or
-    (model_choice == "openai" and st.session_state.openai_api_key) or
+    (model_choice == "gemini" and st.session_state.gemini_key_valid == True) or
+    (model_choice == "openai" and st.session_state.openai_key_valid == True) or
     (model_choice == "stub")
 )
 
@@ -264,8 +250,12 @@ with col2:
             
             st.rerun()
 
+# Show helpful message if can't analyze
 if not can_analyze and uploaded_files:
-    st.warning("⚠️ Please add an API key in the sidebar before analyzing.")
+    if model_choice != "stub":
+        st.error(f"⚠️ Cannot analyze: {model_choice.upper()} API key is not validated. Please validate your API key in the sidebar.")
+    else:
+        st.warning("⚠️ Stub model selected. This is for testing only and returns fake data.")
 
 # Analysis execution
 if analyze_btn and uploaded_files:

@@ -1,15 +1,15 @@
-# ui/pages/settings.py
+# pages/settings.py
 import streamlit as st
 import os
 from pathlib import Path
 import sys
 
-#root/pages/analyze.py
+# Path setup
 repo_root = Path(__file__).parent.parent.resolve()
 if str(repo_root) not in sys.path:
     sys.path.insert(0, str(repo_root))
 
-from shared_init import init_session_state
+from shared_init import init_session_state, validate_api_key, set_api_keys
 
 # Initialize session state
 init_session_state()
@@ -19,15 +19,22 @@ st.markdown("*Configure your Fashion Descriptor AI preferences*")
 st.markdown("---")
 
 # API Configuration
-st.markdown("## 🔑 API Configuration")
+st.markdown("## 🔑 API Key Management")
 
 col1, col2 = st.columns(2)
 
 with col1:
     st.markdown("### Gemini API")
     
-    gemini_status = "✅ Configured" if st.session_state.gemini_api_key else "⚠️ Not Set"
-    st.metric("Status", gemini_status)
+    # Status display
+    if st.session_state.gemini_key_valid == True:
+        st.success("✅ **Valid and Verified**")
+    elif st.session_state.gemini_key_valid == False:
+        st.error("❌ **Invalid or Failed Validation**")
+    elif st.session_state.gemini_api_key:
+        st.warning("⚠️ **Not Validated**")
+    else:
+        st.info("ℹ️ **Not Configured**")
     
     st.markdown("""
     **Gemini Flash 2.5**
@@ -42,8 +49,20 @@ with col1:
         key_preview = st.session_state.gemini_api_key[:8] + "..." + st.session_state.gemini_api_key[-4:]
         st.code(key_preview)
         
+        # Test button
+        if st.button("🔍 Test Gemini Key", use_container_width=True):
+            with st.spinner("Testing API key..."):
+                is_valid, msg = validate_api_key("gemini", st.session_state.gemini_api_key)
+                st.session_state.gemini_key_valid = is_valid
+                if is_valid:
+                    st.success(f"✅ {msg}")
+                    set_api_keys()
+                else:
+                    st.error(f"❌ {msg}")
+        
         if st.button("🗑️ Clear Gemini Key", use_container_width=True):
             st.session_state.gemini_api_key = ""
+            st.session_state.gemini_key_valid = None
             st.session_state.engine = None
             if "GEMINI_API_KEY" in os.environ:
                 del os.environ["GEMINI_API_KEY"]
@@ -51,12 +70,21 @@ with col1:
                 del os.environ["GOOGLE_API_KEY"]
             st.success("Gemini key cleared!")
             st.rerun()
+    else:
+        st.info("💡 Add your Gemini API key in the sidebar to get started")
 
 with col2:
     st.markdown("### OpenAI API")
     
-    openai_status = "✅ Configured" if st.session_state.openai_api_key else "⚠️ Not Set"
-    st.metric("Status", openai_status)
+    # Status display
+    if st.session_state.openai_key_valid == True:
+        st.success("✅ **Valid and Verified**")
+    elif st.session_state.openai_key_valid == False:
+        st.error("❌ **Invalid or Failed Validation**")
+    elif st.session_state.openai_api_key:
+        st.warning("⚠️ **Not Validated**")
+    else:
+        st.info("ℹ️ **Not Configured**")
     
     st.markdown("""
     **GPT-4o Vision**
@@ -71,13 +99,62 @@ with col2:
         key_preview = st.session_state.openai_api_key[:8] + "..." + st.session_state.openai_api_key[-4:]
         st.code(key_preview)
         
+        # Test button
+        if st.button("🔍 Test OpenAI Key", use_container_width=True):
+            with st.spinner("Testing API key..."):
+                is_valid, msg = validate_api_key("openai", st.session_state.openai_api_key)
+                st.session_state.openai_key_valid = is_valid
+                if is_valid:
+                    st.success(f"✅ {msg}")
+                    set_api_keys()
+                else:
+                    st.error(f"❌ {msg}")
+        
         if st.button("🗑️ Clear OpenAI Key", use_container_width=True):
             st.session_state.openai_api_key = ""
+            st.session_state.openai_key_valid = None
             st.session_state.engine = None
             if "OPENAI_API_KEY" in os.environ:
                 del os.environ["OPENAI_API_KEY"]
             st.success("OpenAI key cleared!")
             st.rerun()
+    else:
+        st.info("💡 Add your OpenAI API key in the sidebar to get started")
+
+st.markdown("---")
+
+# Validation Help
+with st.expander("🆘 API Key Validation Help"):
+    st.markdown("""
+    ### Common Validation Issues
+    
+    **"Invalid API key"**
+    - Double-check you copied the entire key
+    - Make sure there are no extra spaces
+    - Verify the key hasn't been revoked
+    - For Gemini: Get a new key from [Google AI Studio](https://aistudio.google.com/app/apikey)
+    - For OpenAI: Get a new key from [OpenAI Platform](https://platform.openai.com/api-keys)
+    
+    **"Quota exceeded"**
+    - Your API key is valid but you've hit rate limits
+    - For Gemini: Wait a few minutes (free tier: 15 requests/min)
+    - For OpenAI: Add billing info or wait for quota reset
+    
+    **"Validation failed"**
+    - Check your internet connection
+    - Verify the API service is accessible
+    - Try again in a few moments
+    
+    ### How Validation Works
+    
+    When you click "Validate", we:
+    1. Strip whitespace from your API key
+    2. Make a minimal API call to list available models
+    3. Confirm the key works and has access
+    4. Store the validation result
+    
+    **Note:** Validation does NOT make any charges to your account.
+    """)
 
 st.markdown("---")
 
@@ -229,6 +306,12 @@ Normalize: {st.session_state.normalize_vocab}
 GEMINI_API_KEY: {'Set' if os.getenv('GEMINI_API_KEY') else 'Not set'}
 OPENAI_API_KEY: {'Set' if os.getenv('OPENAI_API_KEY') else 'Not set'}
     """)
+    
+    st.markdown("**Validation Status:**")
+    st.code(f"""
+Gemini Key Valid: {st.session_state.gemini_key_valid}
+OpenAI Key Valid: {st.session_state.openai_key_valid}
+    """)
 
 st.markdown("---")
 
@@ -251,6 +334,7 @@ with col1:
     - Color & pattern detection
     - Construction analysis
     - Multiple export formats
+    - API key validation
     """)
 
 with col2:
@@ -267,7 +351,6 @@ with col2:
     **License:** MIT
 
     **Developer:** Deborah Imafidon                        
-
     """)
 
 st.markdown("---")
