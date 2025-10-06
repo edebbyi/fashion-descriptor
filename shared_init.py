@@ -7,7 +7,6 @@ import os
 import sys
 from pathlib import Path
 
-# This file is now at repo root (moved from ui/)
 repo_root = Path(__file__).parent.resolve()
 
 # Add repo root to path if not already present
@@ -60,13 +59,13 @@ def init_session_state():
 def set_api_keys():
     """Set API keys as environment variables."""
     if st.session_state.gemini_api_key:
-        # CRITICAL FIX: Strip whitespace to avoid "illegal header value" errors with gRPC
+        # Strip whitespace to avoid API errors
         clean_key = st.session_state.gemini_api_key.strip()
         os.environ["GEMINI_API_KEY"] = clean_key
         os.environ["GOOGLE_API_KEY"] = clean_key
     
     if st.session_state.openai_api_key:
-        # CRITICAL FIX: Strip whitespace to avoid API errors
+        # Strip whitespace to avoid API errors
         clean_key = st.session_state.openai_api_key.strip()
         os.environ["OPENAI_API_KEY"] = clean_key
 
@@ -107,7 +106,7 @@ def validate_api_key(key_type: str, api_key: str) -> tuple[bool, str]:
         try:
             from openai import OpenAI
             client = OpenAI(api_key=api_key)
-            # Try to list models as a lightweight validation
+            # Try to list models for validation
             client.models.list()
             return True, "✅ OpenAI API key is valid"
         except Exception as e:

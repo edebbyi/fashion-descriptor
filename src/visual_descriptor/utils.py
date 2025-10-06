@@ -1,10 +1,9 @@
-# src/visual_descriptor/utils.py
 from __future__ import annotations
 from typing import Dict, List, Tuple, Optional, Any
 from pathlib import Path
 import hashlib
 
-# Optional deps
+# Optional image/array libs
 try:
     from PIL import Image, ImageFilter, ImageStat
     _PIL_OK = True
@@ -19,7 +18,7 @@ except Exception:
     _NP_OK = False
 
 
-# ---- basic utilities ---------------------------------------------------------
+# Basic utilities
 
 def img_hash(p: Path) -> str:
     """Stable content hash (first 16 hex chars of SHA-256)."""
@@ -39,23 +38,24 @@ def load_image_size(path: Path) -> tuple[int, int]:
         return im.size
 
 
-# ---- image helpers (require NumPy + PIL) ------------------------------------
+# Image processing helpers
 
 def _load_rgb_np(path: Path, target: int = 256) -> "np.ndarray":
+    """Load image as RGB numpy array, resize to target on shortest side."""
     if not (_PIL_OK and _NP_OK):
         raise RuntimeError("NumPy/Pillow not available for _load_rgb_np")
     with Image.open(path) as im:
         im = im.convert("RGB")
-        # keep aspect ratio: shortest side -> target
+        # Keep aspect ratio: shortest side -> target
         w, h = im.size
         scale = float(target) / float(min(w, h)) if min(w, h) > 0 else 1.0
         im = im.resize((max(1, int(w * scale)), max(1, int(h * scale))))
         return np.asarray(im, dtype=np.uint8)
 
 def _rgb_to_hsv(rgb: "np.ndarray") -> "np.ndarray":
+    """Convert RGB [0,255] to HSV: H in [0,360), S,V in [0,1]."""
     if not _NP_OK:
         raise RuntimeError("NumPy not available for _rgb_to_hsv")
-    # rgb in [0,255] -> hsv with H in [0,360), S,V in [0,1]
     arr = rgb.astype(np.float32) / 255.0
     r, g, b = arr[..., 0], arr[..., 1], arr[..., 2]
     maxc = np.max(arr, axis=-1)
@@ -75,6 +75,7 @@ def _rgb_to_hsv(rgb: "np.ndarray") -> "np.ndarray":
     return hsv
 
 def _kmeans(x: "np.ndarray", k: int = 3, iters: int = 6, seed: int = 0) -> tuple["np.ndarray", "np.ndarray"]:
+    """Simple k-means clustering. Returns (centers, sizes) sorted by cluster size."""
     if not _NP_OK:
         raise RuntimeError("NumPy not available for _kmeans")
     rng = np.random.default_rng(seed)
@@ -92,8 +93,10 @@ def _kmeans(x: "np.ndarray", k: int = 3, iters: int = 6, seed: int = 0) -> tuple
     order = np.argsort(-sizes)
     return centers[order], sizes[order]
 
+# Color naming logic
+
 def _purple_shade(h: float, s: float, v: float) -> str:
-    # h: 0..360, s/v: 0..1
+    """Distinguish purple shades by HSV values."""
     if s < 0.25 and v > 0.8: return "lavender"
     if v < 0.35: return "plum"
     if 290 <= h <= 320 and s > 0.55: return "violet"
@@ -102,7 +105,8 @@ def _purple_shade(h: float, s: float, v: float) -> str:
     return "amethyst"
 
 def _shade_name(h: float, s: float, v: float) -> str:
-    # families by hue
+    """Map HSV to human-readable color name."""
+    # Color families by hue
     if 260 <= h <= 345:  # purples/magentas
         return _purple_shade(h, s, v)
     if 200 <= h < 260:  # blues
@@ -119,7 +123,7 @@ def _shade_name(h: float, s: float, v: float) -> str:
         return "orange"
     if 5 <= h < 20:
         return "red"
-    # neutrals by saturation/value
+    # Neutrals by saturation/value
     if v > 0.9 and s < 0.1:
         return "white"
     if v < 0.2:
@@ -129,7 +133,7 @@ def _shade_name(h: float, s: float, v: float) -> str:
     return "beige"
 
 def dominant_color_shades(path: Path, k: int = 3) -> list[str]:
-    """Return up to k shade names (e.g., 'violet', 'plum', 'navy')."""
+    """Return up to k shade names ('violet', 'plum', 'navy')."""
     if not (_PIL_OK and _NP_OK):
         return []
     rgb = _load_rgb_np(path, target=256)
@@ -144,7 +148,7 @@ def dominant_color_shades(path: Path, k: int = 3) -> list[str]:
     return shades[:k]
 
 def has_vertical_bright_line_center(path: Path) -> bool:
-    """Heuristic for an exposed front zipper: long bright thin vertical line near center."""
+    """Check for exposed front zipper: long bright vertical line near center."""
     if not (_PIL_OK and _NP_OK):
         return False
     arr = _load_rgb_np(path, target=256)
@@ -154,7 +158,7 @@ def has_vertical_bright_line_center(path: Path) -> bool:
     cx0, cx1 = int(w * 0.45), int(w * 0.55)
     band = gray[:, cx0:cx1]
     bright = (band > 210).astype("uint8")
-    # longest vertical run of bright pixels in any column
+    # Longest vertical run of bright pixels in any column
     longest = 0
     for x in range(bright.shape[1]):
         col = bright[:, x]
@@ -169,7 +173,7 @@ def has_vertical_bright_line_center(path: Path) -> bool:
     return longest > int(h * 0.35)  # ≥35% of height
 
 def has_midriff_gap(path: Path) -> bool:
-    """Detect a horizontal band with low primary-color coverage (crop-top + skirt)."""
+    """Detect horizontal band with low color coverage (crop-top + skirt gap)."""
     if not (_PIL_OK and _NP_OK):
         return False
     rgb = _load_rgb_np(path, target=256)
@@ -179,13 +183,13 @@ def has_midriff_gap(path: Path) -> bool:
     h, w = hsv.shape[:2]
     primary_h = float(np.median(H))
     mask = (np.abs((H - primary_h + 180) % 360 - 180) < 20) & (S > 0.25)
-    row_cov = mask.mean(axis=1)  # fraction per row
-    # middle band
+    row_cov = mask.mean(axis=1)  # Fraction per row
+    # Middle band
     top, bot = int(h * 0.30), int(h * 0.75)
     mid = row_cov[top:bot] if bot > top else row_cov
     if len(mid) == 0:
         return False
-    # trough if any 8+ consecutive rows < 0.25 while regions above/below typically higher
+    # Gap detected if 8+ consecutive rows < 0.25 coverage
     low = mid < 0.25
     run = 0
     for v in low:
@@ -195,6 +199,7 @@ def has_midriff_gap(path: Path) -> bool:
     return False
 
 def estimate_warmth_from_palette(names: list[str]) -> str:
+    """Score palette as warm/cool/neutral based on color names."""
     warm = {"red", "orange", "gold", "yellow", "tan", "beige", "brown", "cocoa", "blush", "pink", "ivory"}
     cool = {"blue", "navy", "teal", "cyan", "green", "olive", "purple", "violet", "gray", "white", "black"}
     score = sum(1 for n in names if n in warm) - sum(1 for n in names if n in cool)
@@ -205,31 +210,31 @@ def estimate_warmth_from_palette(names: list[str]) -> str:
     return "neutral"
 
 
-# ---- multiview detection -----------------------------------------------------
+# Multiview detection
 
 def _detect_multiview(path: str) -> Dict[str, Optional[str]]:
-    """Detect side-by-side front/back layouts more robustly."""
+    """Detect side-by-side front/back layouts using edge density and gutter detection."""
     if not _PIL_OK:
         return {"multiview": "no", "views": None, "view": None}
 
     im = Image.open(path).convert("L")
     w, h = im.size
 
-    # Wide images are more likely to be collages (front/back).
+    # Wide images are more likely to be collages
     wide = w >= int(1.5 * h)
 
-    # Split into halves and compute edge density
+    # Split halves and compute edge density
     left = im.crop((0, 0, w // 2, h)).filter(ImageFilter.FIND_EDGES)
     right = im.crop((w // 2, 0, w, h)).filter(ImageFilter.FIND_EDGES)
     l_score = ImageStat.Stat(left).sum[0] / max(1, (left.size[0] * left.size[1]))
     r_score = ImageStat.Stat(right).sum[0] / max(1, (right.size[0] * right.size[1]))
 
-    # Try to detect a vertical "gutter" between panels (very dark or very bright)
+    # Look for vertical gutter between panels (very dark or very bright)
     midband = im.crop((w // 2 - max(2, w // 200), 0, w // 2 + max(2, w // 200), h))
     mid_mean = ImageStat.Stat(midband).mean[0]
     gutter = (mid_mean < 20) or (mid_mean > 235)
 
-    # Edge similarity between halves (both non-trivial, within a factor)
+    # Check if both halves have similar edge density
     both_present = l_score > 1.5 and r_score > 1.5
     ratio = (l_score / r_score) if r_score else 0.0
     balanced = 0.6 <= ratio <= 1.7

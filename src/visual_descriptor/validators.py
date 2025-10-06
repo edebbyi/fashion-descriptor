@@ -1,4 +1,3 @@
-# src/visual_descriptor/validators.py
 from __future__ import annotations
 from typing import Any, Dict, Optional, List, Tuple
 
@@ -8,8 +7,10 @@ try:
 except Exception:
     _PIL_OK = False
 
-# ---------- image helpers ----------
+# Image analysis helpers
+
 def _avg_rgb(img: "Image.Image") -> Tuple[float, float, float]:
+    """Get average RGB values across entire image."""
     stat = ImageStat.Stat(img)
     if len(stat.mean) >= 3:
         return tuple(stat.mean[:3])  # type: ignore
@@ -17,10 +18,12 @@ def _avg_rgb(img: "Image.Image") -> Tuple[float, float, float]:
     return (m, m, m)
 
 def _luma(rgb: Tuple[float, float, float]) -> float:
+    """Perceptual brightness from RGB."""
     r, g, b = rgb
     return 0.2126 * r + 0.7152 * g + 0.0722 * b
 
 def _estimate_stitching_color(img_path: str) -> Optional[str]:
+    """Guess stitching color by comparing edge brightness to base fabric."""
     if not _PIL_OK:
         return None
     try:
@@ -43,6 +46,7 @@ def _estimate_stitching_color(img_path: str) -> Optional[str]:
     return "matching"
 
 def _looks_like_curtain(img_path: str) -> bool:
+    """Detect draped fabric background via vertical edge patterns."""
     if not _PIL_OK:
         return False
     try:
@@ -61,6 +65,7 @@ def _looks_like_curtain(img_path: str) -> bool:
     return cv > 0.35 and peaks > 12
 
 def _specularity_score(img_path: str) -> float:
+    """Measure glossiness: bright areas with sharp edges (reflections)."""
     if not _PIL_OK:
         return 0.0
     try:
@@ -73,7 +78,6 @@ def _specularity_score(img_path: str) -> float:
     high_int = gray.point(lambda p: 255 if p > 220 else 0)
     high_edge = edges.point(lambda p: 255 if p > 40 else 0)
 
-    # convert to binary to avoid mode errors
     high_int_bin = high_int.convert("1")
     high_edge_bin = high_edge.convert("1")
 
@@ -84,6 +88,7 @@ def _specularity_score(img_path: str) -> float:
     return float(min(1.0, max(0.0, white / float(total + 1e-6))))
 
 def _translucency_score(img_path: str) -> float:
+    """Detect semi-transparent fabrics via mid-tone edge activity."""
     if not _PIL_OK:
         return 0.0
     try:
@@ -97,8 +102,10 @@ def _translucency_score(img_path: str) -> float:
     score = sum(hist[40:]) / (sum(hist) + 1e-6)
     return float(max(0.0, min(1.0, score)))
 
-# ---------- sanitizer ----------
+# Main record sanitizer - fixes common VLM mistakes and fills gaps
+
 def sanitize_record(rec: Dict[str, Any], image_path: Optional[str] = None) -> Dict[str, Any]:
+    """Apply heuristics to clean up and enrich VLM output."""
     rec = dict(rec or {})
     rec.setdefault("garment", {})
     rec.setdefault("construction", {})
@@ -110,7 +117,7 @@ def sanitize_record(rec: Dict[str, Any], image_path: Optional[str] = None) -> Di
     rec.setdefault("notes_uncertain", [])
     rec.setdefault("photo_metrics", {})
 
-    # metrics
+    # Compute photo metrics if we have the image
     if image_path:
         spec = _specularity_score(image_path)
         trans = _translucency_score(image_path)
@@ -119,7 +126,7 @@ def sanitize_record(rec: Dict[str, Any], image_path: Optional[str] = None) -> Di
     else:
         spec = float(rec.get("photo_metrics", {}).get("specularity", 0.0))
 
-    # finish via specularity bands
+    # Map specularity to fabric finish
     fab = rec.get("fabric") or {}
     finish = (fab.get("finish") or "").strip().lower() if isinstance(fab.get("finish"), str) else ""
     if not finish:
@@ -133,7 +140,7 @@ def sanitize_record(rec: Dict[str, Any], image_path: Optional[str] = None) -> Di
             fab["finish"] = "glossy"
     rec["fabric"] = fab
 
-    # stitching_color fallback
+    # Fill in missing stitching colors
     if image_path:
         if not rec["construction"].get("stitching_color"):
             guess = _estimate_stitching_color(image_path)
@@ -147,7 +154,7 @@ def sanitize_record(rec: Dict[str, Any], image_path: Optional[str] = None) -> Di
                     blk["stitching_color"] = guess
                     rec["construction"][part] = blk
 
-    # background hint
+    # Detect curtain backgrounds
     if image_path:
         env = rec.get("environment_lighting") or {}
         if not env.get("background") or env.get("background") == "plain studio sweep":
@@ -157,7 +164,7 @@ def sanitize_record(rec: Dict[str, Any], image_path: Optional[str] = None) -> Di
             env["setup"] = "studio lighting"
         rec["environment_lighting"] = env
 
-    # demote bomber unless rib knit cues exist
+    # Fix bomber jacket over-calling (needs ribbed cues)
     top_style = (rec.get("garment") or {}).get("top_style")
     if isinstance(top_style, str) and top_style.strip().lower() == "bomber":
         dets = [str(d).lower() for d in (rec.get("details") or [])]
@@ -165,7 +172,7 @@ def sanitize_record(rec: Dict[str, Any], image_path: Optional[str] = None) -> Di
         if not ribby:
             rec["garment"]["top_style"] = "jacket"
 
-    # jacket inference: cropped + long-sleeve + zipper
+    # Infer crop jacket from: cropped + long-sleeve + zipper
     cons = rec.get("construction") or {}
     closure_global = str(cons.get("closure") or "").lower()
     top_blk = cons.get("top") if isinstance(cons.get("top"), dict) else {}
@@ -181,7 +188,7 @@ def sanitize_record(rec: Dict[str, Any], image_path: Optional[str] = None) -> Di
         rec["garment"]["top"] = rec["garment"].get("top") or "jacket"
         rec["garment"]["top_style"] = "crop jacket"
 
-    # dress silhouette nudge
+    # Clean up dress records: remove top_length, nudge silhouette
     if isinstance(rec.get("garment_type"), str) and "dress" in rec["garment_type"].lower():
         if gc.get("bottom_length") and gc.get("top_length"):
             gc["top_length"] = None
@@ -192,7 +199,7 @@ def sanitize_record(rec: Dict[str, Any], image_path: Optional[str] = None) -> Di
             rec["silhouette"] = "A-line"
         rec["garment_components"] = gc
 
-    # camera multiview canonicalization
+    # Fix camera view contradictions (pose vs view)
     pose = (rec.get("pose") or "").lower() if isinstance(rec.get("pose"), str) else ""
     cam = rec.get("camera") or {}
     view = (cam.get("view") or "").lower() if isinstance(cam.get("view"), str) else ""
@@ -209,7 +216,7 @@ def sanitize_record(rec: Dict[str, Any], image_path: Optional[str] = None) -> Di
             cam["views"] = ", ".join(seen)
     rec["camera"] = cam
 
-    # palette cap
+    # Limit palette to 2 colors, dedupe
     cp = [c for c in (rec.get("color_palette") or []) if c]
     cp_unique = []
     for c in cp:
@@ -217,16 +224,14 @@ def sanitize_record(rec: Dict[str, Any], image_path: Optional[str] = None) -> Di
             cp_unique.append(c)
     rec["color_palette"] = cp_unique[:2] if len(cp_unique) > 2 else cp_unique
 
-    # footwear hint (leave as-is; optional)
-
-    # layers hygiene
+    # Remove redundant layer names (jacket, pants, dress, etc)
     layers = gc.get("layers")
     if isinstance(layers, list):
         drop = {"jacket", "pants", "trousers", "dress", "skirt", "shorts", "hoodie", "top", "bottom"}
         gc["layers"] = [x for x in layers if str(x).strip().lower() not in drop]
         rec["garment_components"] = gc
 
-    # zipper vs double-breasted conflict
+    # Resolve zipper vs double-breasted conflict
     if has_zip:
         dets = [str(d) for d in (rec.get("details") or [])]
         filtered = [d for d in dets if "double-breasted" not in d.lower()]
@@ -234,7 +239,7 @@ def sanitize_record(rec: Dict[str, Any], image_path: Optional[str] = None) -> Di
             rec["details"] = filtered
             rec["notes_uncertain"].append("Removed 'double-breasted' due to zipper closure.")
 
-    # bottom inference → skirt
+    # Infer skirt from short length + visible seams
     bottom_name = (rec.get("garment") or {}).get("bottom")
     bottom_len = (gc.get("bottom_length") or "").lower()
     seams_txt = ""
@@ -245,7 +250,7 @@ def sanitize_record(rec: Dict[str, Any], image_path: Optional[str] = None) -> Di
         rec["garment"]["bottom"] = "skirt"
         rec["notes_uncertain"].append("Inferred bottom as 'skirt' from short length + seams/stitching cues.")
 
-    # background default
+    # Default background if missing
     env = rec.get("environment_lighting") or {}
     if not env.get("background"):
         env["background"] = "plain studio sweep"
@@ -253,11 +258,9 @@ def sanitize_record(rec: Dict[str, Any], image_path: Optional[str] = None) -> Di
 
     return rec
 
-# --- append at end of validators.py ---
-from typing import Dict, Any
 
 def validate_record_colors(rec: Dict[str, Any]) -> None:
-    """Lightweight sanity check for new colors/pattern fields."""
+    """Quick sanity check for colors/pattern fields."""
     if not isinstance(rec, dict):
         raise ValueError("record must be a dict")
 

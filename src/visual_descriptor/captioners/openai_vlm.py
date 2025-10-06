@@ -11,7 +11,7 @@ except Exception:
 
 
 # ───────────────────────────────────────────────────────────
-# Shared system guidance
+# Fashion-optimized system prompts for OpenAI
 # ───────────────────────────────────────────────────────────
 SYSTEM_CORE = (
     "You are a vision assistant that returns STRICT JSON ONLY. "
@@ -26,7 +26,7 @@ def _image_to_data_url(path: Path) -> str:
 
 
 # ───────────────────────────────────────────────────────────
-# PASS A — Global fields (conservative on colors/pattern)
+# PASS A — Global fields
 # ───────────────────────────────────────────────────────────
 A_SCHEMA: Dict[str, Any] = {
     "type": "object",
@@ -254,11 +254,11 @@ class OpenAIVLM:
         self.client = OpenAI()
         self.model = model_name
 
-    # ── Unified call with automatic fallback ────────────────────────────────
+    # Unified call
     def _call(self, system_text: str, schema: Dict[str, Any], image_path: Path) -> Dict[str, Any]:
         data_url = _image_to_data_url(image_path)
 
-        # 1) Try Responses API with JSON Schema (new SDKs)
+        # 1) Try Responses API with JSON Schema
         try:
             resp = self.client.responses.create(
                 model=self.model,
@@ -311,7 +311,7 @@ class OpenAIVLM:
         except Exception:
             return {}
 
-    # ── Pass switch ────────────────────────────────────────────────────────
+    # Pass switch
     def run(self, path: Path, pass_id: str = "A") -> tuple[Dict[str, Any], Optional[float]]:
         p = (pass_id or "A").upper().strip()
         if p == "A":

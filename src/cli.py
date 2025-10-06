@@ -9,7 +9,7 @@ load_dotenv()
 
 from src.visual_descriptor.engine import Engine
 
-# Optional rich exporter (descriptors.csv + prompt_text.txt)
+# Exporter (descriptors.csv + prompt_text.txt)
 HAS_EXPORTER = False
 try:
     from src.visual_descriptor.export_csv_prompt import CSVExporter, prompt_line
@@ -39,50 +39,12 @@ def parse_args(argv=None):
     p.add_argument("--passes", default="A", help="Comma-separated passes (e.g., A,B,C)")
     p.add_argument("--normalize", default="yes", choices=["yes","no"], help="Normalize vocab in engine")
     p.add_argument("--model", default="openai", help="stub | blip2 | openai (matches your Engine choices)")
-    p.add_argument("--csv", default="colors.csv", help="(fallback) CSV filename in --out")
+    # removed: --csv fallback argument
     return p.parse_args(argv)
 
 
 def record_id_from_path(path: str | Path) -> str:
     return Path(str(path)).stem
-
-
-def _fallback_export_csv(recs: List[Dict[str, Any]], path: str) -> None:
-    """
-    Minimal CSV writer for key color/pattern fields.
-    Always works, independent of your custom exporter.
-    """
-    import csv
-    fields = [
-        "image_id", "image_path",
-        "colors.primary", "colors.secondary",
-        "pattern.type", "pattern.foreground", "pattern.background",
-        "pattern.scale", "pattern.density",
-    ]
-
-    def _get(d: Dict[str, Any], dotted: str):
-        cur = d
-        for part in dotted.split("."):
-            if not isinstance(cur, dict):
-                return None
-            cur = cur.get(part)
-        return cur
-
-    ensure_dir(os.path.dirname(path))
-    with open(path, "w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=fields)
-        w.writeheader()
-        for r in recs:
-            row = {}
-            for k in fields:
-                if "." in k:
-                    val = _get(r, k)
-                    if isinstance(val, dict) and "name" in val:
-                        val = val.get("name")
-                else:
-                    val = r.get(k)
-                row[k] = val
-            w.writerow(row)
 
 
 def _export_descriptors_and_prompts(results: List[Dict[str, Any]], out_dir: str) -> None:
@@ -95,7 +57,7 @@ def _export_descriptors_and_prompts(results: List[Dict[str, Any]], out_dir: str)
         print("[info] rich exporter not available; skipping descriptors.csv & prompt_text.txt")
         return
 
-    # Build rows via your CSVExporter
+    # Build rows with CSVExporter
     exporter = CSVExporter()
     for rec in results:
         try:
@@ -106,7 +68,7 @@ def _export_descriptors_and_prompts(results: List[Dict[str, Any]], out_dir: str)
 
     rows = exporter.export()
     if rows:
-        # descriptors.csv — dynamic columns from first row keys
+        # Build descriptors.csv columns
         import csv
         desc_path = os.path.join(out_dir, "descriptors.csv")
         with open(desc_path, "w", newline="", encoding="utf-8") as f:
@@ -119,7 +81,7 @@ def _export_descriptors_and_prompts(results: List[Dict[str, Any]], out_dir: str)
     else:
         print("[info] no descriptor rows produced")
 
-    # prompt_text.txt — one line per record
+    # prompt_text.txt 
     try:
         prompt_path = os.path.join(out_dir, "prompt_text.txt")
         with open(prompt_path, "w", encoding="utf-8") as f:
@@ -130,7 +92,7 @@ def _export_descriptors_and_prompts(results: List[Dict[str, Any]], out_dir: str)
                     text = prompt_line(rec) if prompt_line else ""
                     line = f"{pid}: {text}".strip()
                 except Exception:
-                    # if prompt_line fails, write a minimal fallback
+                    # if prompt_line fails, write fallback
                     line = f"{rec.get('image_id', '')}".strip()
                 if line:
                     f.write(line + "\n")
@@ -167,7 +129,7 @@ def main(argv=None):
             out.setdefault("image_path", str(path))
             rid = out.get("image_id") or record_id_from_path(path)
 
-            # WRITE JSON INTO outputs/json/<id>.json
+            # Write JSON into outputs/json/<id>.json
             json_path = os.path.join(json_dir, f"{rid}.json")
             with open(json_path, "w", encoding="utf-8") as f:
                 json.dump(out, f, ensure_ascii=False, indent=2)
@@ -177,15 +139,6 @@ def main(argv=None):
         except Exception as e:
             print(f"[error] failed on {img}: {e}", file=sys.stderr)
             traceback.print_exc()
-
-    # Always write the simple colors.csv as a baseline
-    csv_path = os.path.join(out_dir, args.csv)
-    try:
-        _fallback_export_csv(results, csv_path)
-        print(f"[info] wrote CSV -> {csv_path}")
-    except Exception as e:
-        print(f"[error] failed to export CSV: {e}", file=sys.stderr)
-        traceback.print_exc()
 
     # If available, also write descriptors.csv + prompt_text.txt in outputs/
     try:

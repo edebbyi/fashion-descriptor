@@ -26,7 +26,7 @@ FASHION_SYSTEM_CORE = """You are an expert fashion analyst and technical designe
 Return ONLY valid JSON. Be precise and confident in your assessments. Use null only when truly uncertain."""
 
 # ───────────────────────────────────────────────────────────
-# PASS A — Global assessment (comprehensive)
+# PASS A — Global assesessment
 # ───────────────────────────────────────────────────────────
 A_PROMPT = """Analyze this fashion image comprehensively and return STRICT JSON matching this schema:
 
@@ -229,8 +229,7 @@ class GeminiVLM:
         if not api_key:
             raise RuntimeError("GEMINI_API_KEY or GOOGLE_API_KEY environment variable required")
         
-        # CRITICAL FIX: Strip whitespace to prevent "illegal header value" gRPC errors
-        # This fixes the error: "validate_metadata_from_plugin: INTERNAL:Illegal header value"
+        # Strip whitespace to prevent errors
         api_key = api_key.strip()
         
         genai.configure(api_key=api_key)

@@ -1,4 +1,3 @@
-# src/visual_descriptor/engine.py
 from __future__ import annotations
 from pathlib import Path
 from typing import Dict, Any, List
@@ -9,23 +8,19 @@ from .schema import Record
 from .captioners import StubCaptioner, Blip2Captioner, OpenAIVLM as CaptionersOpenAIVLM, GeminiVLM as CaptionersGeminiVLM
 from .utils import img_hash, is_image
 
-# Safe import (no-op if the symbol is absent in your validators.py)
 try:
     from .validators import validate_record_colors
 except Exception:
-    def validate_record_colors(_rec):  # no-op fallback
+    def validate_record_colors(_rec): 
         return
 
 
-# --- adapter: lift VLM's nested colors/pattern into your existing fields ---
+# Adapt VLM color output to schema format
 def _adapt_colors_from_vlm(rec: Dict[str, Any]) -> None:
     """
     Mutates rec in place.
-    Expects possibly nested:
-      rec['colors'] with keys primary/secondary/accents/pattern
-      and/or a top-level rec['pattern'].
-    Maps to your schema:
-      - color_primary, color_secondary (top-level strings)
+    Maps nested colors/pattern to schema fields:
+      - color_primary, color_secondary
       - details: compact strings like 'black polka dots', 'brown buttons'
     """
     colors = rec.get("colors")
@@ -72,7 +67,7 @@ def _adapt_colors_from_vlm(rec: Dict[str, Any]) -> None:
         existing = rec.get("details")
         if not (isinstance(existing, list) and all(isinstance(x, str) for x in existing)):
             existing = []
-        # de-dup preserving order
+        # De-dup preserving order
         seen = set()
         out = []
         for s in existing + det_bits:
@@ -90,38 +85,32 @@ def _adapt_colors_from_vlm(rec: Dict[str, Any]) -> None:
             rec.pop("details", None)
 
 
-# --- minimal type sanitizer to protect pydantic from VLM bools/etc ---
 def _coerce_str(value: Any) -> str | None:
     """Return value if it's a non-empty string; otherwise None."""
     if isinstance(value, str):
         s = value.strip()
         return s if s else None
-    return None  # Booleans, numbers, dicts, lists → None (schema expects str)
+    return None  
 
+# Ensure string fields are actually strings (not booleans/etc)
 def _sanitize_types(rec: Dict[str, Any]) -> None:
-    """
-    In-place: ensure fields that the schema expects as strings are actually strings (or None).
-    We only touch a few known culprits; everything else is left intact.
-    """
     g = rec.get("garment")
     if not isinstance(g, dict):
         rec["garment"] = {}
         g = rec["garment"]
 
-    # Known string fields in garment block and mirrored top-level shadows
+    # Known string fields in garment block
     for key in ("top_style", "top", "top_sleeve", "bottom", "silhouette", "garment_type"):
         if key in rec:
             rec[key] = _coerce_str(rec.get(key))
         if key in g:
             g[key] = _coerce_str(g.get(key))
 
-    # Construction sub-blocks sometimes get booleans too; keep strings or None
     cons = rec.get("construction")
     if isinstance(cons, dict):
         for key in ("seams", "stitching", "stitching_color", "hems", "closure"):
             if key in cons:
                 cons[key] = _coerce_str(cons.get(key))
-        # optional nested top/bottom construction pieces
         for piece_key in ("top", "bottom"):
             piece = cons.get(piece_key)
             if isinstance(piece, dict):
@@ -129,7 +118,7 @@ def _sanitize_types(rec: Dict[str, Any]) -> None:
                     if key in piece:
                         piece[key] = _coerce_str(piece.get(key))
 
-    # details must be list[str] or absent
+    # Details must be list[str] or absent
     dets = rec.get("details")
     if isinstance(dets, list):
         only_str = [d for d in dets if isinstance(d, str)]
@@ -147,10 +136,10 @@ class Engine:
         
         # Choose backend: gemini > openai > blip2 > stub
         if model == "gemini" and CaptionersGeminiVLM is not None:
-            self.model = CaptionersGeminiVLM()  # Gemini Flash 2.5
+            self.model = CaptionersGeminiVLM()
             self.using_gemini = True
         elif model == "openai" and CaptionersOpenAIVLM is not None:
-            self.model = CaptionersOpenAIVLM()  # GPT-4o-backed VLM
+            self.model = CaptionersOpenAIVLM()
             self.using_gemini = False
         elif model == "blip2" and Blip2Captioner is not None:
             self.model = Blip2Captioner()
@@ -160,26 +149,24 @@ class Engine:
             self.using_gemini = False
 
     def describe_image(self, path: Path, passes: List[str]) -> Dict[str, Any]:
-        # coerce to Path in case a string sneaks in
         from pathlib import Path as _P
         path = _P(path)
 
-        # base metadata
+        # Base metadata
         base: Dict[str, Any] = {"image_id": path.stem, "source_hash": img_hash(path)}
         rec: Dict[str, Any] = base
 
-        # run all VLM passes and merge
+        # Run all VLM passes and merge
         for pid in passes:
             out, conf = self.model.run(path, pass_id=pid)
             rec = merge_pass(rec, out, conf, fields_scope=None)
 
-        # give the pipeline the actual file path
         rec["image_path"] = str(path)
 
-        # adapt nested colors/pattern from VLM into your schema
+        # Adapt nested colors/pattern from VLM into schema
         _adapt_colors_from_vlm(rec)
 
-        # sanitize details now (in case a VLM pass wrote objects there)
+        # Sanitize details
         dets = rec.get("details")
         if isinstance(dets, list):
             only_str = [d for d in dets if isinstance(d, str)]
@@ -190,31 +177,29 @@ class Engine:
         elif dets is not None:
             rec.pop("details", None)
 
-        # normalize vocab (lightweight)
+        # Normalize vocab
         if self.normalize:
             rec = normalize_record(rec)
 
-        # IMPORTANT: pixel/SLIC fallback is DISABLED. We trust VLM only.
+        # Note: pixel/SLIC fallback is disabled. VLM only.
 
-        # metadata + field defaults
+        # Metadata + field defaults
         rec.setdefault("version", "vd_v1.0.0")
         rec.setdefault("confidence", {})
         rec.setdefault("footwear", {"type": None, "color": None})
 
-        # sanitize types before schema validation
         _sanitize_types(rec)
 
-        # optional color validation (non-fatal)
+        # Optional color validation 
         try:
             validate_record_colors(rec)
         except Exception:
             pass
 
-        # validate against schema (filter unknown keys)
+        # Validate against schema
         allowed = set(Record.model_fields.keys())
         r = Record(**{k: v for k, v in rec.items() if k in allowed})
 
-        # Convert to dict
         output = r.model_dump(mode="python", exclude_none=False)
         
         # Generate and add prompt_text
@@ -222,13 +207,11 @@ class Engine:
             from .export_csv_prompt import prompt_line
             output["prompt_text"] = prompt_line(output)
         except Exception as e:
-            # If prompt generation fails, include a basic fallback
             output["prompt_text"] = f"{output.get('garment_type', 'garment')} - {output.get('image_id', '')}"
         
         return output
 
     def enumerate_inputs(self, in_path: Path) -> List[Path]:
-        # keep your original non-recursive behavior
         p = Path(in_path)
         if p.is_file():
             return [p] if is_image(p) else []

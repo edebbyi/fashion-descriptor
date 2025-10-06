@@ -8,12 +8,12 @@ import base64
 import sys
 import os
 
-# ==================== CRITICAL PATH SETUP ====================
+# Path setup
 current_file = Path(__file__).resolve()
 pages_dir = current_file.parent  # pages/
 repo_root = pages_dir.parent     # repo root
 
-# Add BOTH to path to be safe
+# Add pages/ and repo root to path to be safe
 for path in [str(repo_root), str(pages_dir)]:
     if path not in sys.path:
         sys.path.insert(0, path)
@@ -24,7 +24,7 @@ if not src_path.exists():
     st.error(f"⚠️ Cannot find src/ directory at {src_path}")
     st.stop()
 
-# ==================== NOW SAFE TO IMPORT ====================
+# Import shared_init
 try:
     from shared_init import init_session_state, set_api_keys, has_valid_api_key
 except ImportError as e:
@@ -55,7 +55,7 @@ if "feedback_type" not in st.session_state:
 if "file_uploader_key" not in st.session_state:
     st.session_state.file_uploader_key = 0
 
-# ==================== HELPER FUNCTIONS ====================
+# helper functions
 def init_engine(model: str = "gemini"):
     """Initialize or get existing engine"""
     set_api_keys()
@@ -124,7 +124,7 @@ st.markdown("*Upload fashion images for AI-powered analysis*")
 # Show any pending feedback messages
 show_feedback()
 
-# CRITICAL: Check for valid API key before allowing any analysis
+# Check for valid API key before allowing any analysis
 if not has_valid_api_key():
     st.error("""
     🚫 **Cannot analyze images without a valid API key**

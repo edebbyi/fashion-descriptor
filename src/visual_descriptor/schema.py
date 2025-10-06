@@ -1,8 +1,8 @@
-# src/visual_descriptor/schema.py
 from __future__ import annotations
 from typing import Any, Dict, List, Optional, ClassVar
 from pydantic import BaseModel, Field, ConfigDict, field_validator
 
+# Create default dicts for each instance
 def _default_fabric() -> Dict[str, Optional[str]]:
     return {"type": None, "texture": None, "weight": None, "finish": None}
 
@@ -31,6 +31,7 @@ def _default_camera() -> Dict[str, Optional[str]]:
     return {"view": None, "multiview": None, "views": None, "angle": None}
 
 class Record(BaseModel):
+    """Main data model for garment image descriptions"""
     model_config = ConfigDict(extra="ignore", arbitrary_types_allowed=True)
 
     image_id: str
@@ -56,7 +57,6 @@ class Record(BaseModel):
 
     color_palette: List[str] = Field(default_factory=list)
     
-    # ADD THESE TWO FIELDS FOR TOP-LEVEL COLOR ACCESS
     color_primary: Optional[str] = None
     color_secondary: Optional[str] = None
     
@@ -68,7 +68,7 @@ class Record(BaseModel):
 
     confidence: Dict[str, float] = Field(default_factory=dict)
     
-    prompt_text: Optional[str] = None  # Human-readable description
+    prompt_text: Optional[str] = None
     
     version: Optional[str] = None
     source_hash: Optional[str] = None
@@ -76,6 +76,7 @@ class Record(BaseModel):
     @field_validator("garment_components", mode="before")
     @classmethod
     def _coerce_gcs(cls, v: Any) -> Dict[str, Any]:
+        """Clean up garment_components - handle layers as string, list, or None"""
         if not isinstance(v, dict):
             return _default_garment_components()
         out = dict(_default_garment_components())
@@ -95,11 +96,12 @@ class Record(BaseModel):
     @field_validator("construction", mode="before")
     @classmethod
     def _coerce_cons(cls, v: Any) -> Dict[str, Any]:
+        """Normalize construction fields - top/bottom can be dicts or strings"""
         if not isinstance(v, dict):
             return _default_construction()
         out = dict(_default_construction())
         out.update(v or {})
-        # normalize per-piece dict-or-null
+        # Convert lists to comma-joined strings
         for part in ("top", "bottom"):
             blk = out.get(part)
             if isinstance(blk, list):
@@ -112,8 +114,8 @@ class Record(BaseModel):
     @classmethod
     def _coerce_camera(cls, v: Any) -> Dict[str, Optional[str]]:
         """
-        Ensure camera fields are strings (or None). Coerce lists to comma-joined strings
-        and numerics/bools to canonical strings. Normalize multiview to 'yes'/'no'.
+        Coerce camera fields to strings. Handle lists, bools, numbers properly.
+        Normalize multiview to 'yes'/'no'.
         """
         def as_str(x: Any) -> Optional[str]:
             if x is None:
@@ -136,16 +138,16 @@ class Record(BaseModel):
         for key in ("view", "multiview", "views", "angle"):
             out[key] = as_str(v.get(key))
 
-        # normalize multiview
+        # Standardize multiview values
         mv = (out.get("multiview") or "").lower()
         if mv in {"true", "yes", "1"}:
             out["multiview"] = "yes"
         elif mv in {"false", "no", "0"}:
             out["multiview"] = "no"
         elif mv == "":
-            out["multiview"] = None  # leave unset
+            out["multiview"] = None
 
-        # normalize views: "front, back"
+        # Clean up views list
         if out.get("views"):
             toks = [t.strip() for t in str(out["views"]).split(",") if t.strip()]
             out["views"] = ", ".join(toks) if toks else None
@@ -154,6 +156,7 @@ class Record(BaseModel):
 
     @staticmethod
     def _listify(v: Any) -> List[str]:
+        """Convert anything to a list of strings"""
         if v is None:
             return []
         if isinstance(v, list):
@@ -164,7 +167,7 @@ class Record(BaseModel):
         s = str(v).strip()
         return [s] if s else []
 
-    # THIS IS THE KEY FIX: Add ClassVar to prevent CSV_FIELDS from being serialized
+    # CSV export field order - clothing first, lighting last
     CSV_FIELDS: ClassVar[List[str]] = [
         "image_id",
         "garment_type", "silhouette",
@@ -190,9 +193,11 @@ class Record(BaseModel):
     ]
 
     def dict_flat(self) -> Dict[str, str]:
+        """Flatten nested structure to single-level dict for CSV export"""
         def g(d: Dict, k: str) -> str:
             return (d or {}).get(k) or ""
 
+        # Use palette for missing primary/secondary colors
         colors = [c for c in (self.color_palette or []) if c]
         color_primary = self.color_primary or (colors[0] if len(colors) > 0 else "")
         color_secondary = self.color_secondary or (colors[1] if len(colors) > 1 else "")
@@ -202,6 +207,7 @@ class Record(BaseModel):
         layers_str = ", ".join(layers_val) if isinstance(layers_val, list) else (layers_val or "")
 
         def part(d: Any, key: str) -> Dict[str, str]:
+            """Extract construction details for top or bottom piece"""
             if isinstance(d, dict) and isinstance(d.get(key), dict):
                 blk = d.get(key)
                 return {

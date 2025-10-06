@@ -100,22 +100,21 @@ def normalize_record(r: Dict[str, Any]) -> Dict[str, Any]:
     if isinstance(r.get("color_palette"), list):
         r["color_palette"] = _norm_list(r["color_palette"], COLOR_MAP)
 
-    # Normalize fabric (and add satin inference)
+    # Normalize fabric 
     fab = dict(r.get("fabric") or {})
     # normalize to our controlled vocab where applicable
     fab["type"]    = _norm(fab.get("type"), FABRIC_TYPE_MAP)
     fab["texture"] = _norm(fab.get("texture"), FABRIC_TEXTURE_MAP)
     fab["weight"]  = _norm(fab.get("weight"), FABRIC_WEIGHT_MAP)
-    # finish stays as-is; just ensure consistent casing when we inspect it
+
     r["fabric"] = fab
 
-    # --- FIX: define ftype/finish/texture before using them; write back to r ---
+    #Define ftype/finish/texture before using them
     ftype   = (fab.get("type") or "").strip().lower()
     finish  = (fab.get("finish") or "").strip().lower()
     texture = (fab.get("texture") or "").strip().lower()
 
-    # infer more specific textile when VLM returns generic buckets
-    # shiny + smooth + generic → satin
+    # Infer shiny + smooth + generic fytpe = satin
     if (ftype in {"", "synthetic", "poly", "polyester", "unknown"}
         and finish == "shiny" and texture == "smooth"):
         fab["type"] = "satin"

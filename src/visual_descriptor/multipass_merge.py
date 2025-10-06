@@ -2,16 +2,13 @@ from __future__ import annotations
 from typing import Dict, Any, List, Optional, Tuple
 from .schema import Record
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Merge helpers + public merge_pass (needed by engine.py)
-# ──────────────────────────────────────────────────────────────────────────────
+
+# Merge helpers
 
 def _merge_lists(a, b) -> list:
     """
-    Union two lists while de-duping items.
-    - Dict items de-duped by a stable key (role,name,hex) when present,
-      otherwise by sorted items.
-    - Non-dicts de-duped by string value.
+    Union two lists, de-duping items.
+    Dict items de-duped by stable key (role,name,hex), non-dicts by string value.
     """
     if not isinstance(a, list): a = [] if a is None else [a]
     if not isinstance(b, list): b = [] if b is None else [b]
@@ -32,7 +29,7 @@ def _merge_lists(a, b) -> list:
     return out
 
 def _merge_dicts(a: Dict[str, Any] | None, b: Dict[str, Any] | None) -> Dict[str, Any]:
-    """Recursive dict merge with list-union semantics."""
+    """Recursive dict merge with list-union."""
     if not a: return dict(b or {})
     if not b: return dict(a or {})
     out: Dict[str, Any] = dict(a)
@@ -51,10 +48,8 @@ def merge_pass(base: Dict[str, Any] | None,
                conf_in: Optional[float] = None,
                fields_scope: Optional[Any] = None) -> Dict[str, Any]:
     """
-    Public merge used by Engine. Signature kept compatible with older calls.
-    - Non-destructive merge of dicts.
-    - Lists are unioned with de-duplication.
-    - Colors.accents are de-duped and softly capped to keep JSON stable.
+    Merge VLM pass output. Non-destructive merge with list-union.
+    Colors.accents are de-duped and capped at 12 to keep JSON stable.
     """
     if base is None: base = {}
     if not incoming: return base
@@ -69,13 +64,12 @@ def merge_pass(base: Dict[str, Any] | None,
 
     return out
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Exporter / prompt utilities (unchanged except compact details summary)
-# ──────────────────────────────────────────────────────────────────────────────
+
+# Export utilities
 
 # Clothing first, lighting last, prompt_text included
 CSV_FIELDS: List[str] = [
-    # Garment summary block
+    # Garment summary
     "garment_type", "silhouette",
     "garment.top_style", "garment.top", "garment.top_sleeve",
     "garment.bottom",
@@ -101,7 +95,7 @@ CSV_FIELDS: List[str] = [
     # Photo meta
     "photo_style", "pose",
     "photo_metrics.specularity", "photo_metrics.translucency",
-    # Environment lighting LAST
+    # Environment lighting last
     "environment_lighting.background", "environment_lighting.mood", "environment_lighting.setup",
     # IDs + prompt
     "image_id", "prompt_text",
@@ -207,8 +201,8 @@ def _garment_summary(rec: Dict[str, Any]) -> str:
 
 def _details_phrase(rec: Dict[str, Any]) -> str:
     """
-    Summarize structured details: group by (label, color) and show counts.
-    If only strings exist, join them compactly. Limit to 4 groups.
+    Summarize details: group by (label, color), show counts. Limit to 4 groups.
+    Falls back to old string list if structured data unavailable.
     """
     dets = rec.get("details_struct")
     if isinstance(dets, list) and dets and isinstance(dets[0], dict):
@@ -231,7 +225,7 @@ def _details_phrase(rec: Dict[str, Any]) -> str:
                     bits.append(f"{n} {key[0]}")
             return "details: " + ", ".join(bits)
 
-    # fallback to legacy strings
+    # Fallback to old strings
     dets = rec.get("details")
     if isinstance(dets, list):
         cleaned = [d.strip() for d in dets if isinstance(d, str) and d.strip()]
@@ -240,6 +234,7 @@ def _details_phrase(rec: Dict[str, Any]) -> str:
     return ""
 
 def prompt_line(rec: Dict[str, Any]) -> str:
+    """Generate human-readable prompt text from record."""
     r = Record(**rec) if not isinstance(rec, Record) else rec
     rec = r.model_dump(mode="python", exclude_none=False)
 
@@ -321,7 +316,7 @@ class CSVExporter:
     def add_flat(self, d: Dict[str, Any]) -> None:
         d = dict(d)
 
-        # Backfill primary/secondary from descriptive palette
+        # Use palette for missing primary/secondary colors
         palette = [c for c in (d.get("color_palette") or []) if c]
         if not d.get("color_primary"):
             d["color_primary"] = palette[0] if len(palette) > 0 else None

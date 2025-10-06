@@ -49,7 +49,7 @@ with col1:
         key_preview = st.session_state.gemini_api_key[:8] + "..." + st.session_state.gemini_api_key[-4:]
         st.code(key_preview)
         
-        # Test button
+        # Gemini Test button
         if st.button("🔍 Test Gemini Key", use_container_width=True):
             with st.spinner("Testing API key..."):
                 is_valid, msg = validate_api_key("gemini", st.session_state.gemini_api_key)
@@ -99,7 +99,7 @@ with col2:
         key_preview = st.session_state.openai_api_key[:8] + "..." + st.session_state.openai_api_key[-4:]
         st.code(key_preview)
         
-        # Test button
+        # OpenAI Test button
         if st.button("🔍 Test OpenAI Key", use_container_width=True):
             with st.spinner("Testing API key..."):
                 is_valid, msg = validate_api_key("openai", st.session_state.openai_api_key)

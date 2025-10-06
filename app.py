@@ -165,7 +165,7 @@ with st.sidebar:
        # elif st.session_state.openai_api_key:
         #    st.warning("⚠️ API key not validated yet")
     
-    # Overall status indicators (outside expander)
+    # Overall status indicators
     st.markdown("**Status:**")
     col1, col2 = st.columns(2)
     with col1:

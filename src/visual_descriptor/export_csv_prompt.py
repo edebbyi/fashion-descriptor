@@ -159,21 +159,20 @@ def prompt_line(rec: Dict[str, Any]) -> str:
     Generate comprehensive prompt text with fabric, construction, and photography details.
     Format: garment | fabric | colors | construction | photography
     """
-    # DEFENSIVE: Work directly with the dict, don't convert to Record
-    # This avoids validation errors when called from engine.py
+    # Work directly with the dict, don't convert to Record
     if isinstance(rec, Record):
         rec = rec.model_dump(mode="python", exclude_none=False)
     else:
         # Make a copy to avoid mutating the original
         rec = dict(rec)
 
-    # 1. GARMENT CORE
+    # 1. Garment core
     summary = _garment_summary(rec)
     
-    # 2. FABRIC (detailed)
+    # 2. Fabric
     fabric_str = _fabric_phrase(rec.get("fabric") or {})
     
-    # 3. SILHOUETTE & FIT
+    # 3. Silhouette & Fit
     silhouette = rec.get("silhouette", "")
     if silhouette:
         silhouette = str(silhouette).strip()
@@ -181,7 +180,7 @@ def prompt_line(rec: Dict[str, Any]) -> str:
     if fit:
         fit = str(fit).strip()
     
-    # 4. COLORS (use top-level color_primary/color_secondary if available)
+    # 4. Colors
     color_primary = rec.get("color_primary", "")
     if color_primary:
         color_primary = str(color_primary).strip()
@@ -218,10 +217,10 @@ def prompt_line(rec: Dict[str, Any]) -> str:
     
     color_str = ", ".join(color_parts)
     
-    # 5. DETAILS
+    # 5. Details
     details = _details_phrase(rec)
     
-    # 6. CONSTRUCTION
+    # 6. Construction
     cons = rec.get("construction") or {}
     top_phrase = _piece_cons(cons.get("top") if isinstance(cons.get("top"), dict) else {})
     bot_phrase = _piece_cons(cons.get("bottom") if isinstance(cons.get("bottom"), dict) else {})
@@ -237,13 +236,13 @@ def prompt_line(rec: Dict[str, Any]) -> str:
     
     cons_str = " | ".join(cons_parts)
     
-    # 7. LAYERS
+    # 7. Layers
     gc = rec.get("garment_components") or {}
     layers = gc.get("layers") or []
     layers = layers if isinstance(layers, list) else [layers]
     layers_str = ", ".join([str(x) for x in layers if x])
     
-    # 8. FOOTWEAR
+    # 8. Footwear
     fw = rec.get("footwear") or {}
     footwear_parts = []
     if fw.get("type"):
@@ -253,7 +252,7 @@ def prompt_line(rec: Dict[str, Any]) -> str:
             footwear_parts.append(str(fw['type']))
     footwear_str = ", ".join(footwear_parts)
     
-    # 9. PHOTOGRAPHY
+    # 9. Photography
     model = rec.get("model") or {}
     cam = rec.get("camera") or {}
     env = rec.get("environment_lighting") or {}
@@ -293,7 +292,7 @@ def prompt_line(rec: Dict[str, Any]) -> str:
     
     photo_str = ", ".join(photo_parts)
     
-    # BUILD FINAL PROMPT
+    # Build Final Prompt
     blocks = []
     
     # Block 1: Garment + Fabric + Silhouette/Fit
@@ -333,7 +332,7 @@ def prompt_line(rec: Dict[str, Any]) -> str:
     
     return " || ".join(blocks)
 
-
+# Export csv
 class CSVExporter:
     def __init__(self):
         self.rows: List[Dict[str, Any]] = []
