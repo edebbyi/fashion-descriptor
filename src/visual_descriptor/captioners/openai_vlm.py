@@ -26,7 +26,7 @@ def _image_to_data_url(path: Path) -> str:
 
 
 # ───────────────────────────────────────────────────────────
-# PASS A — Global fields
+# PASS A — Global field assessment
 # ───────────────────────────────────────────────────────────
 A_SCHEMA: Dict[str, Any] = {
     "type": "object",

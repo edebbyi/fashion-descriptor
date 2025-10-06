@@ -26,7 +26,7 @@ FASHION_SYSTEM_CORE = """You are an expert fashion analyst and technical designe
 Return ONLY valid JSON. Be precise and confident in your assessments. Use null only when truly uncertain."""
 
 # ───────────────────────────────────────────────────────────
-# PASS A — Global assesessment
+# PASS A — Global field assesessment
 # ───────────────────────────────────────────────────────────
 A_PROMPT = """Analyze this fashion image comprehensively and return STRICT JSON matching this schema:
 
