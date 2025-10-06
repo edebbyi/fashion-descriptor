@@ -131,7 +131,7 @@ if not has_valid_api_key():
     
     Please configure and validate your API key first:
     
-    1. Go to the sidebar and click **"Configure API Keys"**
+    1. Go to the sidebar and click **"App >> Configure API Keys"**
     2. Enter your **Gemini** or **OpenAI** API key
     3. Click the **"Validate"** button to verify it works
     4. Once validated, return here to analyze images
