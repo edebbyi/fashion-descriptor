@@ -1,4 +1,4 @@
-# ui/pages/analyze.py
+# pages/analyze.py
 import streamlit as st
 from pathlib import Path
 import time
@@ -8,23 +8,87 @@ import base64
 import sys
 import os
 
-#root/pages/analyze.py
-repo_root = Path(__file__).parent.parent.resolve()
-if str(repo_root) not in sys.path:
-    sys.path.insert(0, str(repo_root))
+# ==================== CRITICAL PATH SETUP ====================
+# This MUST happen before any imports from src/
+current_file = Path(__file__).resolve()
+pages_dir = current_file.parent  # pages/
+repo_root = pages_dir.parent     # repo root
 
-# NOW import shared_init (which will also ensure paths are set)
-from shared_init import init_session_state, set_api_keys
+# Add BOTH to path to be safe
+for path in [str(repo_root), str(pages_dir)]:
+    if path not in sys.path:
+        sys.path.insert(0, path)
+
+# Verify src is accessible
+src_path = repo_root / "src"
+if not src_path.exists():
+    st.error(f"⚠️ Cannot find src/ directory at {src_path}")
+    st.stop()
+
+# ==================== NOW SAFE TO IMPORT ====================
+try:
+    from shared_init import init_session_state, set_api_keys
+except ImportError as e:
+    st.error(f"⚠️ Failed to import shared_init: {e}")
+    st.code(f"sys.path = {sys.path}")
+    st.stop()
 
 # Initialize session state
 init_session_state()
 
-# Import engine AFTER paths are fully configured
+# Import engine with detailed error handling
 try:
     from src.visual_descriptor.engine import Engine
+except ModuleNotFoundError as e:
+    st.error(f"⚠️ Module not found: {e}")
+    st.markdown("""
+    ### Debugging Information:
+    
+    **Error:** Cannot find a required module.
+    
+    **Possible causes:**
+    1. Missing `__init__.py` files
+    2. Dependencies not installed
+    3. Python path not set correctly
+    """)
+    
+    with st.expander("🔍 Debug Info"):
+        st.markdown("**Python Path:**")
+        for p in sys.path:
+            st.code(p)
+        
+        st.markdown("**Current Directory:**")
+        st.code(str(Path.cwd()))
+        
+        st.markdown("**Repo Root:**")
+        st.code(str(repo_root))
+        
+        st.markdown("**src/ exists:**")
+        st.code(str((repo_root / "src").exists()))
+        
+        st.markdown("**src/__init__.py exists:**")
+        st.code(str((repo_root / "src" / "__init__.py").exists()))
+    
+    st.stop()
 except ImportError as e:
-    st.error(f"⚠️ Failed to import Engine: {e}")
-    st.info("Check that all dependencies are installed: pip install -r requirements.txt")
+    st.error(f"⚠️ Import error: {e}")
+    st.markdown("""
+    ### This usually means a dependency is missing.
+    
+    **Check:**
+    - Is `pydantic` in requirements.txt?
+    - Did the dependencies install correctly?
+    """)
+    
+    with st.expander("🔍 Full Error"):
+        import traceback
+        st.code(traceback.format_exc())
+    
+    st.stop()
+except Exception as e:
+    st.error(f"⚠️ Unexpected error: {e}")
+    import traceback
+    st.code(traceback.format_exc())
     st.stop()
 
 # Initialize feedback message state
