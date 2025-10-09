@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+.eggs/
+.build/
+dist/
+build/
+
+# Virtual env
+.venv/
+env/
+venv/
+
+# Jupyter / notebooks
+.ipynb_checkpoints/
+*.ipynb_convert/
+
+# Testing / coverage
+.pytest_cache/
+htmlcov/
+.coverage*
+.cache/
+
+# OS cruft
+.DS_Store
+Thumbs.db
+
+# Editors / IDEs
+.vscode/
+.idea/
+
+# App artifacts (don’t commit generated outputs)
+uploads/
+outputs/
+*.log
+
+# Local config / secrets
+.env
+.env.*.local
+
+# Data 
+data/raw/
+data/tmp/
+data/cache/
+
+# test images
+data/images/*
+
+# Model weights/checkpoints 
+models/
+checkpoints/
+
+# Streamlit
+.streamlit/secrets.toml

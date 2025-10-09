@@ -1,0 +1,6 @@
+Capture all high-level fields, including fabric.finish, model/framing/expression/gaze, background, and camera.view or multiview. Be conservative; unknown -> null.
+
+Color & pattern policy for this pass:
+- If colors/pattern are visually OBVIOUS (e.g., clear polka dots with distinct dot vs background colors), fill the 'pattern' block and set colors.primary/secondary conservatively.
+- Otherwise, leave 'colors' and 'pattern' fields as null/empty; a downstream pixel step will populate them precisely.
+- Never spam repeated color names. If you provide colors.base, cap to ~3–5 unique swatches you’re confident about.

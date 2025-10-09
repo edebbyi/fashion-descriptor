@@ -1,0 +1,1 @@
+Refine construction only: seams, stitching, hems, closure and section details top/bottom. Do not change unrelated fields.

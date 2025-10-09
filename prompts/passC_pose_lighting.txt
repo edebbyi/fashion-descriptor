@@ -1,0 +1,1 @@
+Refine pose, model.{framing,expression,gaze}, environment_lighting.{setup,mood,background}, camera.{view,multiview,views,angle}. Do not change construction.
