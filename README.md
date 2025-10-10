@@ -26,10 +26,13 @@ python -m src.cli --in image.jpg --out outputs --model gemini
 Convenient shortcuts for development and testing:
 
 ```bash
-make ui         # Launch Streamlit interface (localhost:8501)
-make api        # Start FastAPI server (localhost:8000) with hot reload
-make run        # Run CLI with example parameters
-make test       # Run pytest test suite
+make ui           # Launch Streamlit interface (localhost:8501)
+make api          # Start FastAPI server (localhost:8000) with hot reload
+make run          # Run CLI with example parameters
+make test         # Run pytest test suite
+make health       # Check API health endpoint
+make test-single  # Test single image analysis via API
+make test-folder  # Test ZIP folder analysis via API
 ```
 
 **Examples:**
@@ -40,7 +43,12 @@ make ui
 # Start the API server for development
 make api
 
-# Run batch processing
+# Test API endpoints (requires API server running)
+make health
+make test-single IMAGE=path/to/image.jpg
+make test-folder ZIP=path/to/images.zip
+
+# Run batch processing via CLI
 make run
 
 # Run tests
@@ -52,6 +60,7 @@ make test
 - **Multi-pass analysis**: Global → Construction → Presentation
 - **Multiple backends**: Gemini (free), GPT-4o (paid), or stub (testing)
 - **Structured output**: 50+ JSON fields with Pydantic validation
+- **Batch processing**: Single images or ZIP folders with multiple images
 - **Three interfaces**: Web UI, REST API, CLI
 - **Cloud-ready**: Docker + Google Cloud Run deployment
 
@@ -87,11 +96,19 @@ make test
 # Check if service is live
 curl https://visual-descriptor-516904417440.us-central1.run.app/healthz
 
-# Analyze an image (requires API key)
+# Analyze a single image (requires API key)
 curl -X POST https://visual-descriptor-516904417440.us-central1.run.app/v1/jobs \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -F "file=@image.jpg" \
-  -F "passes=A,B,C"
+  -F "passes=A,B,C" \
+  -F "model=gemini"
+
+# Analyze multiple images from a ZIP folder
+curl -X POST https://visual-descriptor-516904417440.us-central1.run.app/v1/jobs \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -F "file=@fashion_collection.zip" \
+  -F "passes=A,B,C" \
+  -F "model=openai"
 ```
 
 ⚠️ **Important Notes:**
@@ -99,6 +116,25 @@ curl -X POST https://visual-descriptor-516904417440.us-central1.run.app/v1/jobs 
 - Free tier rate limits apply (15 requests/min via Gemini)
 - For production use, deploy your own instance (see [Deployment](#deployment) section)
 - Contact artofesosa@gmail.com for demo API access
+
+### Supported File Types
+
+- **Single Images**: JPG, JPEG, PNG, WebP
+- **ZIP Folders**: ZIP files containing any combination of supported image formats
+  - Processes all images found in the ZIP (including subdirectories)
+  - Returns one analysis record per image
+  - Automatically filters out system files (.DS_Store, ._* resource forks)
+  - Failed images are skipped, successful ones still processed
+
+### API Parameters
+
+- **file**: Image file or ZIP folder (required)
+- **passes**: Analysis passes - A,B,C (default: "A,B,C")
+- **model**: AI model to use (default: environment VD_MODEL setting)
+  - `openai` - GPT-4 Vision (recommended for production)
+  - `gemini` - Gemini Flash 2.5 (free tier available)
+  - `blip2` - Local BLIP2 model
+  - `stub` - Mock model for testing
 
 ### Run Locally
 
@@ -109,17 +145,27 @@ export API_KEY=dev_key_123
 uvicorn api.app:app --port 8000
 ```
 
-### Local Example
+### Local Examples
 
 ```bash
+# Analyze a single image
 curl -X POST http://localhost:8000/v1/jobs \
   -H "Authorization: Bearer dev_key_123" \
   -F "file=@image.jpg" \
-  -F "passes=A,B,C"
+  -F "passes=A,B,C" \
+  -F "model=openai"
+
+# Analyze multiple images from a ZIP folder
+curl -X POST http://localhost:8000/v1/jobs \
+  -H "Authorization: Bearer dev_key_123" \
+  -F "file=@fashion_collection.zip" \
+  -F "passes=A,B,C" \
+  -F "model=gemini"
 ```
 
 ### Response
 
+**Single Image Response:**
 ```json
 {
   "job_id": "j_abc123",
@@ -143,7 +189,37 @@ curl -X POST http://localhost:8000/v1/jobs \
       "closure": "zipper"
     },
     "prompt_text": "Long sleeve bodycon dress..."
-  }]
+  }],
+  "backend": "GeminiVLM",
+  "model": "gemini"
+}
+```
+
+**ZIP Folder Response (Multiple Images):**
+```json
+{
+  "job_id": "j_def456",
+  "status": "completed",
+  "records": [
+    {
+      "image_id": "dress1",
+      "garment_type": "dress",
+      "silhouette": "bodycon",
+      "fabric": {"type": "jersey"},
+      "colors": {"primary": "royal purple"},
+      "prompt_text": "Long sleeve bodycon dress..."
+    },
+    {
+      "image_id": "skirt2",
+      "garment_type": "skirt",
+      "silhouette": "A-line",
+      "fabric": {"type": "cotton"},
+      "colors": {"primary": "navy blue"},
+      "prompt_text": "Navy blue A-line skirt..."
+    }
+  ],
+  "backend": "GeminiVLM",
+  "model": "gemini"
 }
 ```
 
@@ -287,10 +363,15 @@ gcloud run services describe visual-descriptor \
 # Test health endpoint
 curl https://visual-descriptor-xxx-uc.a.run.app/healthz
 
-# Analyze image
+# Analyze single image
 curl -X POST https://visual-descriptor-xxx-uc.a.run.app/v1/jobs \
   -H "Authorization: Bearer your_api_key" \
   -F "file=@image.jpg"
+
+# Analyze ZIP folder with multiple images
+curl -X POST https://visual-descriptor-xxx-uc.a.run.app/v1/jobs \
+  -H "Authorization: Bearer your_api_key" \
+  -F "file=@fashion_collection.zip"
 ```
 
 #### Monitoring

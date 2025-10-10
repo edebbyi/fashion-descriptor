@@ -29,6 +29,10 @@ def img_hash(p: Path) -> str:
     return h.hexdigest()[:16]
 
 def is_image(p: Path) -> bool:
+    """Check if a file is a valid image based on extension and system file filtering."""
+    # Filter out system and hidden files
+    if p.name.startswith('._') or p.name.startswith('.DS_Store') or p.name.startswith('Thumbs.db'):
+        return False
     return p.suffix.lower() in {".jpg", ".jpeg", ".png", ".webp"}
 
 def load_image_size(path: Path) -> tuple[int, int]:

@@ -215,4 +215,5 @@ class Engine:
         p = Path(in_path)
         if p.is_file():
             return [p] if is_image(p) else []
-        return [q for q in p.iterdir() if is_image(q)]
+        # Use recursive glob to find all images in subdirectories
+        return [q for q in p.rglob("*") if q.is_file() and is_image(q)]

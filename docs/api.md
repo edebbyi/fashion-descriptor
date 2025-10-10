@@ -33,27 +33,45 @@ REST API for fashion image analysis. Returns structured JSON with garment detail
 
 ### POST /v1/jobs
 
-Analyze a fashion image.
+Analyze fashion images (single image or ZIP folder).
 
-**Request:**
+**Request Examples:**
 
 ```bash
+# Analyze single image
 curl -X POST "$VD_BASE_URL/v1/jobs" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -F "file=@image.jpg" \
-  -F "passes=A,B,C"
+  -F "passes=A,B,C" \
+  -F "model=openai"
+
+# Analyze ZIP folder with multiple images
+curl -X POST "$VD_BASE_URL/v1/jobs" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -F "file=@fashion_collection.zip" \
+  -F "passes=A,B" \
+  -F "model=gemini"
 ```
 
 **Parameters:**
 
-* `file` (required): Image file (multipart/form-data)
-
-  * Formats: JPG, PNG, WebP
-  * Max size: 10MB
+* `file` (required): Image file or ZIP folder (multipart/form-data)
+  * **Single Images**: JPG, JPEG, PNG, WebP
+  * **ZIP Folders**: ZIP files containing supported image formats
+    * Processes all images found recursively in ZIP
+    * Filters out system files (.DS_Store, ._* resource forks)
+    * Returns one record per valid image found
+  * Max size: 50MB
 * `passes` (optional): Comma-separated analysis passes
-
   * Default: "A,B,C"
   * Options: "A", "B", "C", "A,B", "A,B,C", etc.
+* `model` (optional): AI model to use for analysis
+  * Default: Uses environment `VD_MODEL` setting
+  * Options:
+    * `"openai"` - GPT-4 Vision (recommended for production)
+    * `"gemini"` - Gemini Flash 2.5 (free tier available) 
+    * `"blip2"` - Local BLIP2 model
+    * `"stub"` - Mock model for testing
 
 **Response:** `200 OK`
 
@@ -122,11 +140,17 @@ curl -X POST "$VD_BASE_URL/v1/jobs" \
 }
 ```
 
-`400 Bad Request`
+`400 Bad Request` - Invalid model or no images in ZIP
 
 ```json
 {
-  "detail": "Upload a file via multipart/form-data key 'file'"
+  "detail": "Invalid model 'invalid_model'. Supported: openai, gemini, blip2, stub"
+}
+```
+
+```json
+{
+  "detail": "No valid images found in ZIP file. Found 3 files with extensions: ['.txt', '.pdf']. Supported formats: .jpg, .jpeg, .png, .webp"
 }
 ```
 
@@ -458,9 +482,14 @@ def analyze_fashion_image(image_path: str, api_key: str, base_url: str | None = 
     response.raise_for_status()
     return response.json()
 
-# Usage
+# Usage - Single image
 result = analyze_fashion_image('dress.jpg', 'your_api_key')
 print(result['records'][0]['prompt_text'])
+
+# Usage - ZIP folder with multiple images
+result = analyze_fashion_image('fashion_collection.zip', 'your_api_key')
+for record in result['records']:
+    print(f"{record['image_id']}: {record['prompt_text']}")
 ```
 
 ### cURL
